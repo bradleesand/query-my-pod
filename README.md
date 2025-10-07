@@ -1,93 +1,113 @@
 # Podcast Search
 
+A self-hosted web application that makes your favorite podcasts searchable and queryable through AI. Track podcasts via RSS, automatically transcribe episodes, and chat with an LLM to discover content across your entire podcast library.
 
+## ⚠️ Project Status
 
-## Getting started
+This project is in early development. Features and documentation will evolve as the project matures.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Features (Planned)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **RSS Feed Management**: Add and track podcasts via RSS feeds
+- **Automatic Transcription**: Self-hosted transcription using Whisper
+- **Speaker Diarization**: Identify and label different speakers using pyannote-audio
+- **AI-Powered Search**: Query your podcast library with natural language questions
+  - "Which episode did they talk about X?"
+  - Find topics and discussions across all episodes
+- **Episode Cross-Linking**: Discover related episodes and topics
+- **Full Transcript Access**: Browse and read complete episode transcripts
+- **Ad Detection** (Experimental): Automatic identification and trimming of ad segments
 
-## Add your files
+## Use Cases
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- Find specific discussions or topics across hundreds of episodes
+- Research what multiple podcasts have said about a particular subject
+- Build a personal, searchable podcast knowledge base
+- Discover connections between episodes and topics
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/bradleesand/podcast-search.git
-git branch -M main
-git push -uf origin main
-```
+## Tech Stack
 
-## Integrate with your tools
+- **Backend**: Ruby on Rails
+- **Transcription**: Whisper (self-hosted)
+- **Speaker Diarization**: pyannote-audio
+- **LLM**: Qwen (or similar self-hosted model)
+- **Deployment**: Docker
 
-- [ ] [Set up project integrations](https://gitlab.com/bradleesand/podcast-search/-/settings/integrations)
+## Prerequisites
 
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- Docker and Docker Compose
+- Sufficient storage for podcast audio files and transcripts
+- GPU recommended (but not required) for faster transcription
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+> **Note**: Installation instructions will be added as the project develops.
+
+```bash
+# Clone the repository
+git clone https://gitlab.com/bradleesand/podcast-search.git
+cd podcast-search
+
+# Build and run with Docker
+docker-compose up
+```
+
+## Configuration
+
+Configuration details will be documented as features are implemented.
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+1. Add podcast RSS feeds through the web interface
+2. The system automatically downloads new episodes
+3. Episodes are transcribed and indexed
+4. Use the chat interface to query your podcast library
+5. Browse transcripts with cross-links to related episodes
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Development Roadmap
+
+- [ ] Basic Rails application structure
+- [ ] RSS feed ingestion and episode downloading
+- [ ] Whisper integration for transcription
+- [ ] pyannote-audio integration for speaker diarization
+- [ ] Database schema for episodes, transcripts, and topics
+- [ ] LLM chat interface
+- [ ] Search and indexing functionality
+- [ ] Episode cross-linking
+- [ ] Ad detection and trimming (experimental)
+- [ ] Docker deployment configuration
+- [ ] Web UI for podcast management
+
+## Architecture
+
+The application follows this workflow:
+
+1. **Ingestion**: RSS feeds are polled for new episodes
+2. **Download**: Audio files are downloaded and stored
+3. **Pre-processing**: (Optional) Ad detection and removal
+4. **Transcription**: Whisper generates text transcripts
+5. **Diarization**: Speaker segments are identified and labeled
+6. **Indexing**: Topics and content are extracted and indexed
+7. **Query**: LLM enables natural language search and discovery
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+This is a personal project in early development. Contributions, ideas, and feedback are welcome as the project takes shape.
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[License TBD]
+
+## Acknowledgments
+
+- [Whisper](https://github.com/openai/whisper) - Speech recognition
+- [pyannote-audio](https://github.com/pyannote/pyannote-audio) - Speaker diarization
+- [Qwen](https://github.com/QwenLM/Qwen) - LLM capabilities
+
+## Contact
+
+[Your contact information]
+
+---
+
+**Self-hosted. Private. Searchable.**
