@@ -1,0 +1,107 @@
+<%= form_with(model: episode) do |form| %>
+  <% if episode.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(episode.errors.count, "error") %> prohibited this episode from being saved:</h2>
+
+      <ul>
+        <% episode.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :podcast_id, style: "display: block" %>
+    <%= form.text_field :podcast_id %>
+  </div>
+
+  <div>
+    <%= form.label :title, style: "display: block" %>
+    <%= form.textarea :title %>
+  </div>
+
+  <div>
+    <%= form.label :enclosure_length, style: "display: block" %>
+    <%= form.number_field :enclosure_length %>
+  </div>
+
+  <div>
+    <%= form.label :enclosure_type, style: "display: block" %>
+    <%= form.textarea :enclosure_type %>
+  </div>
+
+  <div>
+    <%= form.label :enclosure_url, style: "display: block" %>
+    <%= form.textarea :enclosure_url %>
+  </div>
+
+  <div>
+    <%= form.label :guid, style: "display: block" %>
+    <%= form.textarea :guid %>
+  </div>
+
+  <div>
+    <%= form.label :link, style: "display: block" %>
+    <%= form.textarea :link %>
+  </div>
+
+  <div>
+    <%= form.label :pub_date, style: "display: block" %>
+    <%= form.datetime_field :pub_date %>
+  </div>
+
+  <div>
+    <%= form.label :description, style: "display: block" %>
+    <%= form.textarea :description %>
+  </div>
+
+  <div>
+    <%= form.label :duration, style: "display: block" %>
+    <%= form.number_field :duration %>
+  </div>
+
+  <div>
+    <%= form.label :image_url, style: "display: block" %>
+    <%= form.textarea :image_url %>
+  </div>
+
+  <div>
+    <%= form.label :explicit, style: "display: block" %>
+    <%= form.checkbox :explicit %>
+  </div>
+
+  <div>
+    <%= form.label :transcript_url, style: "display: block" %>
+    <%= form.textarea :transcript_url %>
+  </div>
+
+  <div>
+    <%= form.label :transcript_type, style: "display: block" %>
+    <%= form.textarea :transcript_type %>
+  </div>
+
+  <div>
+    <%= form.label :episode_number, style: "display: block" %>
+    <%= form.number_field :episode_number %>
+  </div>
+
+  <div>
+    <%= form.label :season_number, style: "display: block" %>
+    <%= form.number_field :season_number %>
+  </div>
+
+  <div>
+    <%= form.label :episode_type, style: "display: block" %>
+    <%= form.textarea :episode_type %>
+  </div>
+
+  <div>
+    <%= form.label :block, style: "display: block" %>
+    <%= form.checkbox :block %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>

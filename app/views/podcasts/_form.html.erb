@@ -1,0 +1,72 @@
+<%= form_with(model: podcast) do |form| %>
+  <% if podcast.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(podcast.errors.count, "error") %> prohibited this podcast from being saved:</h2>
+
+      <ul>
+        <% podcast.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :rss_url, style: "display: block" %>
+    <%= form.textarea :rss_url %>
+  </div>
+
+  <div>
+    <%= form.label :title, style: "display: block" %>
+    <%= form.textarea :title %>
+  </div>
+
+  <div>
+    <%= form.label :description, style: "display: block" %>
+    <%= form.textarea :description %>
+  </div>
+
+  <div>
+    <%= form.label :link, style: "display: block" %>
+    <%= form.textarea :link %>
+  </div>
+
+  <div>
+    <%= form.label :language, style: "display: block" %>
+    <%= form.textarea :language %>
+  </div>
+
+  <div>
+    <%= form.label :category, style: "display: block" %>
+    <%= form.textarea :category %>
+  </div>
+
+  <div>
+    <%= form.label :explicit, style: "display: block" %>
+    <%= form.checkbox :explicit %>
+  </div>
+
+  <div>
+    <%= form.label :image_url, style: "display: block" %>
+    <%= form.textarea :image_url %>
+  </div>
+
+  <div>
+    <%= form.label :guid, style: "display: block" %>
+    <%= form.textarea :guid %>
+  </div>
+
+  <div>
+    <%= form.label :author, style: "display: block" %>
+    <%= form.textarea :author %>
+  </div>
+
+  <div>
+    <%= form.label :copywrite, style: "display: block" %>
+    <%= form.textarea :copywrite %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>

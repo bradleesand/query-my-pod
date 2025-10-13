@@ -1,0 +1,16 @@
+<% content_for :title, "New podcast" %>
+
+<h1>New podcast</h1>
+
+<%= form_with(model: @podcast) do |form| %>
+  <div>
+    <%= form.label :rss_url, "RSS URL", style: "display: block" %>
+    <%= form.text_field :rss_url %>
+  </div>
+<% end %>
+
+<br>
+
+<div>
+  <%= link_to "Back to podcasts", podcasts_path %>
+</div>

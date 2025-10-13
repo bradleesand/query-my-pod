@@ -1,0 +1,41 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  podcast: one
+  title: MyText
+  enclosure_length: 1
+  enclosure_type: MyText
+  enclosure_url: MyText
+  guid: MyText
+  link: MyText
+  pub_date: 2025-10-07 12:31:58
+  description: MyText
+  duration: 1
+  image_url: MyText
+  explicit: false
+  transcript_url: MyText
+  transcript_type: MyText
+  episode_number: 1
+  season_number: 1
+  episode_type: MyText
+  block: false
+
+two:
+  podcast: two
+  title: MyText
+  enclosure_length: 1
+  enclosure_type: MyText
+  enclosure_url: MyText
+  guid: MyText
+  link: MyText
+  pub_date: 2025-10-07 12:31:58
+  description: MyText
+  duration: 1
+  image_url: MyText
+  explicit: false
+  transcript_url: MyText
+  transcript_type: MyText
+  episode_number: 1
+  season_number: 1
+  episode_type: MyText
+  block: false
