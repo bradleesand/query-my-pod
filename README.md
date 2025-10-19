@@ -20,15 +20,13 @@ This project is in active development. Core podcast management and transcription
 ### 🚧 In Progress
 
 - **Transcript Display**: Show transcripts on episode pages
-- **Speaker Diarization**: Identify different speakers (planned)
+- **Ad Detection**: Automatic ad removal using audio cue matching (experimental)
 
 ### 📋 TODO
 
-- **AI-Powered Search**: Natural language queries across your podcast library
+- **AI-Powered Search & Chat**: Natural language queries with LLM using vector embeddings for semantic search
 - **Episode Cross-Linking**: Discover related episodes and topics
-- **Vector Search**: Semantic search using embeddings
-- **LLM Chat Interface**: Ask questions about podcast content
-- **Ad Detection**: Automatic ad removal using audio cue matching (experimental)
+- **Speaker Diarization**: Identify different speakers in episodes
 
 ## Use Cases
 
