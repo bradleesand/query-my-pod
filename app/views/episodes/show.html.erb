@@ -135,10 +135,24 @@
       </div>
     <% end %>
 
+    <% if @episode.transcript_url.present? %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 text-muted">Podcast Transcript</h6>
+          <iframe src="<%= @episode.transcript_url %>" 
+                  class="w-100 border-0" 
+                  style="height: 500px; max-height: 70vh;"
+                  sandbox="allow-same-origin allow-scripts"
+                  title="Episode Transcript">
+          </iframe>
+        </div>
+      </div>
+    <% end %>
+
     <% if @episode.transcription_completed? && @episode.transcript_text.present? %>
       <div class="card mb-4">
         <div class="card-body">
-          <h6 class="card-subtitle mb-2 text-muted">Transcript</h6>
+          <h6 class="card-subtitle mb-2 text-muted">Generated Transcript</h6>
           <div class="transcript-text" style="max-height: 400px; overflow-y: auto;">
             <%= simple_format(@episode.transcript_text) %>
           </div>
