@@ -2,7 +2,27 @@
 
 <% content_for :title, "Podcasts" %>
 
-<h1>Podcasts</h1>
+<%= turbo_stream_from "podcast_imports" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Podcasts</h1>
+  <%= turbo_frame_tag "new_podcast_import" do %>
+    <%= link_to "Import New Podcast", new_podcast_import_task_path, class: "btn btn-primary", data: { turbo_frame: "new_podcast_import" } %>
+  <% end %>
+</div>
+
+<%= turbo_frame_tag "new_podcast_import" %>
+
+<% if @pending_imports.any? %>
+  <div class="mb-4">
+    <h5>Active Imports</h5>
+    <div id="pending_imports">
+      <% @pending_imports.each do |import_task| %>
+        <%= render "podcast_import_tasks/import_task", import_task: import_task %>
+      <% end %>
+    </div>
+  </div>
+<% end %>
 
 <div id="podcasts">
   <% @podcasts.each do |podcast| %>
@@ -12,5 +32,3 @@
     </p>
   <% end %>
 </div>
-
-<%= link_to "New podcast", new_podcast_path %>

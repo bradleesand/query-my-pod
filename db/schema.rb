@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_07_193158) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_08_190022) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -36,6 +36,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_07_193158) do
     t.index ["podcast_id"], name: "index_episodes_on_podcast_id"
   end
 
+  create_table "podcast_import_tasks", force: :cascade do |t|
+    t.text "url"
+    t.text "status"
+    t.integer "podcast_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["podcast_id"], name: "index_podcast_import_tasks_on_podcast_id"
+  end
+
   create_table "podcasts", force: :cascade do |t|
     t.text "rss_url"
     t.text "title", null: false
@@ -54,4 +63,5 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_07_193158) do
   end
 
   add_foreign_key "episodes", "podcasts"
+  add_foreign_key "podcast_import_tasks", "podcasts"
 end

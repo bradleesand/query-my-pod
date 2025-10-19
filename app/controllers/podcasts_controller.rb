@@ -4,6 +4,7 @@ class PodcastsController < ApplicationController
   # GET /podcasts or /podcasts.json
   def index
     @podcasts = Podcast.all
+    @pending_imports = PodcastImportTask.where(status: [:pending, :processing]).order(created_at: :desc)
   end
 
   # GET /podcasts/1 or /podcasts/1.json

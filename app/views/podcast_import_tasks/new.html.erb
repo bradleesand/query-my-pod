@@ -1,0 +1,30 @@
+<%= turbo_frame_tag "new_podcast_import" do %>
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">Import Podcast from RSS Feed</h5>
+      <%= form_with model: @podcast_import_task, data: { turbo_frame: "_top" } do |form| %>
+        <% if @podcast_import_task.errors.any? %>
+          <div class="alert alert-danger">
+            <h6><%= pluralize(@podcast_import_task.errors.count, "error") %> prohibited this import:</h6>
+            <ul class="mb-0">
+              <% @podcast_import_task.errors.each do |error| %>
+                <li><%= error.full_message %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <div class="mb-3">
+          <%= form.label :url, "RSS Feed URL", class: "form-label" %>
+          <%= form.text_field :url, class: "form-control", placeholder: "https://example.com/podcast/feed.xml", autofocus: true %>
+          <div class="form-text">Enter the RSS feed URL of the podcast you want to import.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <%= form.submit "Import Podcast", class: "btn btn-primary" %>
+          <%= link_to "Cancel", podcasts_path, data: { turbo_frame: "new_podcast_import" }, class: "btn btn-secondary" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

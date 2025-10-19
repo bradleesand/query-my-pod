@@ -1,0 +1,26 @@
+<div id="<%= dom_id(import_task) %>" class="alert <%= status_class(import_task) %> d-flex justify-content-between align-items-center">
+  <div>
+    <% if import_task.processing? %>
+      <div class="spinner-border spinner-border-sm me-2" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    <% elsif import_task.failed? %>
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <% elsif import_task.completed? %>
+      <i class="bi bi-check-circle-fill me-2"></i>
+    <% else %>
+      <i class="bi bi-clock-fill me-2"></i>
+    <% end %>
+    
+    <strong><%= import_task.status.titleize %>:</strong>
+    <%= truncate(import_task.url, length: 80) %>
+    
+    <% if import_task.podcast %>
+      → <em><%= import_task.podcast.title %></em>
+    <% end %>
+  </div>
+  
+  <% if import_task.completed? && import_task.podcast %>
+    <%= link_to "View", podcast_path(import_task.podcast), class: "btn btn-sm btn-primary" %>
+  <% end %>
+</div>
