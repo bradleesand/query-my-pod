@@ -1,5 +1,5 @@
 class PodcastsController < ApplicationController
-  before_action :set_podcast, only: %i[ show edit update destroy ]
+  before_action :set_podcast, only: %i[ show edit update destroy refresh ]
 
   # GET /podcasts or /podcasts.json
   def index
@@ -9,6 +9,21 @@ class PodcastsController < ApplicationController
 
   # GET /podcasts/1 or /podcasts/1.json
   def show
+    sort_order = params[:sort] == 'asc' ? :asc : :desc
+    @pagy, @episodes = pagy(@podcast.episodes.order(pub_date: sort_order), limit: 25)
+    @sort_order = sort_order
+  end
+
+  # POST /podcasts/1/refresh
+  def refresh
+    PodcastRefreshJob.perform_later(@podcast.id)
+    
+    respond_to do |format|
+      format.html { redirect_to @podcast, notice: "Podcast refresh has been queued. New episodes will appear shortly." }
+      format.turbo_stream do
+        flash.now[:notice] = "Podcast refresh has been queued. New episodes will appear shortly."
+      end
+    end
   end
 
   # GET /podcasts/new

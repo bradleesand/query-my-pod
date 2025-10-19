@@ -1,5 +1,3 @@
-<p style="color: green"><%= notice %></p>
-
 <% content_for :title, "Podcasts" %>
 
 <%= turbo_stream_from "podcast_imports" %>
@@ -25,10 +23,11 @@
 <% end %>
 
 <div id="podcasts">
-  <% @podcasts.each do |podcast| %>
-    <%= render podcast %>
-    <p>
-      <%= link_to "Show this podcast", podcast %>
-    </p>
-  <% end %>
+  <ul class="list-group">
+    <% @podcasts.each do |podcast| %>
+      <li class="list-group-item">
+        <%= link_to podcast.title, podcast, class: "text-decoration-none" %>
+      </li>
+    <% end %>
+  </ul>
 </div>

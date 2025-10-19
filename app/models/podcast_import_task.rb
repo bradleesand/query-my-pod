@@ -10,6 +10,7 @@ class PodcastImportTask < ApplicationRecord
     failed: "failed"
   }, default: :pending
 
+  before_validation :normalize_url
   before_create :check_existing_podcast
   after_create :enqueue_import_job, unless: :completed?
   after_update_commit :broadcast_update
@@ -17,6 +18,21 @@ class PodcastImportTask < ApplicationRecord
   validates :url, presence: true, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }
 
   private
+
+  def normalize_url
+    return if url.blank?
+    
+    uri = URI.parse(url.strip)
+    # Normalize scheme and host to lowercase (case-insensitive per RFC 3986)
+    uri.scheme = uri.scheme.downcase if uri.scheme
+    uri.host = uri.host.downcase if uri.host
+    # Remove trailing slash and fragment, keep query params as they might be important
+    uri.fragment = nil
+    uri.path = uri.path.chomp('/') if uri.path.end_with?('/')
+    self.url = uri.to_s
+  rescue URI::InvalidURIError
+    # Let validation handle invalid URLs
+  end
 
   def check_existing_podcast
     # Check if a podcast with this URL already exists

@@ -1,6 +1,10 @@
 Rails.application.routes.draw do
   resources :episodes
-  resources :podcasts
+  resources :podcasts do
+    member do
+      post :refresh
+    end
+  end
   resources :podcast_import_tasks, only: [:new, :create]
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

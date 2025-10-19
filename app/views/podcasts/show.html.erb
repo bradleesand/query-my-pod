@@ -1,10 +1,115 @@
-<p style="color: green"><%= notice %></p>
+<% content_for :title, @podcast.title %>
 
-<%= render @podcast %>
+<div class="row">
+  <div class="col-md-4">
+    <% if @podcast.image_url.present? %>
+      <%= link_to @podcast.link, target: "_blank", rel: "noopener" do %>
+        <%= image_tag @podcast.image_url, alt: @podcast.title, class: "img-fluid rounded shadow-sm mb-3" %>
+      <% end %>
+    <% end %>
+    
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Links</h6>
+        <ul class="list-unstyled">
+          <% if @podcast.rss_url.present? %>
+            <li class="mb-2">
+              <%= link_to @podcast.rss_url, target: "_blank", rel: "noopener", class: "text-decoration-none" do %>
+                <i class="bi bi-rss-fill text-warning"></i> RSS Feed
+              <% end %>
+            </li>
+          <% end %>
+          <% if @podcast.link.present? %>
+            <li class="mb-2">
+              <%= link_to @podcast.link, target: "_blank", rel: "noopener", class: "text-decoration-none" do %>
+                <i class="bi bi-link-45deg"></i> Website
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Details</h6>
+        <dl class="mb-0">
+          <% if @podcast.author.present? %>
+            <dt class="small text-muted">Author</dt>
+            <dd class="mb-2"><%= @podcast.author %></dd>
+          <% end %>
+          
+          <% if @podcast.language.present? %>
+            <dt class="small text-muted">Language</dt>
+            <dd class="mb-2"><%= @podcast.language %></dd>
+          <% end %>
+          
+          <% if @podcast.category.present? %>
+            <dt class="small text-muted">Category</dt>
+            <dd class="mb-2"><%= @podcast.category %></dd>
+          <% end %>
+          
+          <% if @podcast.explicit.present? %>
+            <dt class="small text-muted">Explicit</dt>
+            <dd class="mb-2"><%= @podcast.explicit ? "Yes" : "No" %></dd>
+          <% end %>
+          
+          <% if @podcast.copywrite.present? %>
+            <dt class="small text-muted">Copyright</dt>
+            <dd class="mb-0"><small><%= @podcast.copywrite %></small></dd>
+          <% end %>
+        </dl>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-8">
+    <h1 class="mb-3"><%= @podcast.title %></h1>
+    
+    <% if @podcast.description.present? %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 text-muted">About</h6>
+          <p class="card-text"><%= simple_format(@podcast.description) %></p>
+        </div>
+      </div>
+    <% end %>
+    
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h4>Episodes</h4>
+        <div class="btn-group btn-group-sm" role="group">
+          <%= link_to "Newest First", podcast_path(@podcast, sort: 'desc'), 
+                      class: "btn btn-outline-primary #{'active' if @sort_order == :desc}" %>
+          <%= link_to "Oldest First", podcast_path(@podcast, sort: 'asc'), 
+                      class: "btn btn-outline-primary #{'active' if @sort_order == :asc}" %>
+        </div>
+      </div>
+      
+      <% if @episodes.any? %>
+        <ul class="list-group mb-3">
+          <% @episodes.each do |episode| %>
+            <li class="list-group-item">
+              <%= link_to episode.title, episode, class: "text-decoration-none" %>
+              <% if episode.pub_date %>
+                <br>
+                <small class="text-muted"><%= episode.pub_date.strftime("%B %d, %Y") %></small>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        
+        <%== pagy_bootstrap_nav(@pagy) if @pagy.pages > 1 %>
+      <% else %>
+        <p class="text-muted">No episodes yet.</p>
+      <% end %>
+    </div>
+  </div>
+</div>
 
-<div>
-  <%= link_to "Edit this podcast", edit_podcast_path(@podcast) %> |
-  <%= link_to "Back to podcasts", podcasts_path %>
-
-  <%= button_to "Destroy this podcast", @podcast, method: :delete %>
+<div class="mt-4">
+  <%= link_to "Back to podcasts", podcasts_path, class: "btn btn-secondary" %>
+  <%= button_to "Refresh Episodes", refresh_podcast_path(@podcast), method: :post, class: "btn btn-primary" %>
+  <%= button_to "Delete", @podcast, method: :delete, class: "btn btn-outline-danger", 
+                form: { data: { turbo_confirm: "Are you sure you want to delete this podcast?" } } %>
 </div>
