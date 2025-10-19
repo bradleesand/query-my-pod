@@ -10,7 +10,6 @@
     
     <div class="card mb-3">
       <div class="card-body">
-        <h6 class="card-subtitle mb-2 text-muted">Episode Info</h6>
         <dl class="mb-0">
           <% if @episode.pub_date.present? %>
             <dt class="small text-muted">Published</dt>
@@ -19,7 +18,7 @@
           
           <% if @episode.duration.present? %>
             <dt class="small text-muted">Duration</dt>
-            <dd class="mb-2"><%= @episode.duration %></dd>
+            <dd class="mb-2"><%= Time.at(@episode.duration).utc.strftime("%H:%M:%S").sub(/^00:/, '') %></dd>
           <% end %>
           
           <% if @episode.season_number.present? && @episode.season_number > 0 %>
@@ -30,11 +29,6 @@
           <% if @episode.episode_number.present? && @episode.episode_number > 0 %>
             <dt class="small text-muted">Episode</dt>
             <dd class="mb-2"><%= @episode.episode_number %></dd>
-          <% end %>
-          
-          <% if @episode.episode_type.present? %>
-            <dt class="small text-muted">Type</dt>
-            <dd class="mb-2"><%= @episode.episode_type.titleize %></dd>
           <% end %>
           
           <% if @episode.explicit.present? %>
