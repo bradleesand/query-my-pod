@@ -4,18 +4,40 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 
 ## ⚠️ Project Status
 
-This project is in early development. Features and documentation will evolve as the project matures.
+This project is in active development. Core podcast management and transcription features are working. LLM/search features are coming next.
 
-## Features (Planned)
+## Features
 
-- **RSS Feed Management**: Add and track podcasts via RSS feeds
-- **Automatic Transcription**: Self-hosted transcription using Whisper
-- **Speaker Diarization**: Identify and label different speakers using pyannote-audio
+### ✅ Implemented
+
+- **RSS Feed Management**: Add and track podcasts via RSS feeds with live import status
+- **Episode Import**: Automatic episode discovery and metadata extraction following PSP-1 RSS spec
+- **Automatic Transcription**: Self-hosted transcription using Whisper with JSON output (text + timestamps)
+- **Daily Refresh**: Automatic daily polling of RSS feeds for new episodes
+- **Web UI**: Bootstrap-powered interface for podcast and episode browsing
+  - Podcast details with cover art and metadata
+  - Episode pages with HTML5 audio player
+  - Pagination and sorting for episode lists
+  - Manual refresh button for on-demand updates
+- **Background Jobs**: Solid Queue for reliable job processing
+  - Import jobs with status tracking
+  - Transcription jobs with format validation
+  - Scheduled daily refresh
+- **URL Normalization**: Prevent duplicate podcasts from similar URLs
+
+### 🚧 In Progress
+
+- **Full Transcript Access**: Display transcripts on episode pages
+- **Speaker Diarization**: Identify and label different speakers using pyannote-audio (planned)
+
+### 📋 TODO
+
 - **AI-Powered Search**: Query your podcast library with natural language questions
   - "Which episode did they talk about X?"
   - Find topics and discussions across all episodes
 - **Episode Cross-Linking**: Discover related episodes and topics
-- **Full Transcript Access**: Browse and read complete episode transcripts
+- **Vector Search**: Semantic search using embeddings
+- **LLM Chat Interface**: Natural language queries over podcast content
 - **Ad Detection** (Experimental): Automatic identification and trimming of ad segments
 
 ## Use Cases
@@ -27,72 +49,103 @@ This project is in early development. Features and documentation will evolve as 
 
 ## Tech Stack
 
-- **Backend**: Ruby on Rails
+- **Backend**: Ruby on Rails 8
+- **Database**: SQLite (development), PostgreSQL-ready
+- **Background Jobs**: Solid Queue
 - **Transcription**: Whisper (self-hosted)
-- **Speaker Diarization**: pyannote-audio
-- **LLM**: Qwen (or similar self-hosted model)
-- **Deployment**: Docker
+- **Speaker Diarization**: pyannote-audio (planned)
+- **LLM**: Qwen or similar self-hosted model (planned)
+- **UI**: Bootstrap 5 with Hotwire/Turbo
+- **Deployment**: Docker (planned)
 
 ## Prerequisites
 
-- Docker and Docker Compose
+- Ruby 3.4+
+- Rails 8
+- [Whisper](https://github.com/openai/whisper) for transcription: `pip install openai-whisper`
 - Sufficient storage for podcast audio files and transcripts
 - GPU recommended (but not required) for faster transcription
 
 ## Installation
-
-> **Note**: Installation instructions will be added as the project develops.
 
 ```bash
 # Clone the repository
 git clone https://gitlab.com/bradleesand/podcast-search.git
 cd podcast-search
 
-# Build and run with Docker
-docker-compose up
+# Install dependencies
+bundle install
+
+# Setup database
+rails db:setup
+
+# Install Whisper
+pip install openai-whisper
+
+# Run the application (with background jobs)
+bin/dev
 ```
 
 ## Configuration
 
-Configuration details will be documented as features are implemented.
+### OpenSSL 3.6.0 Compatibility
+
+If you encounter SSL certificate verification errors with OpenSSL 3.6.0, add the `openssl` gem which is included in the Gemfile.
+
+### Recurring Jobs
+
+Daily podcast refresh is configured in `config/recurring.yml` and runs at 2am by default. Edit this file to change the schedule.
 
 ## Usage
 
-1. Add podcast RSS feeds through the web interface
-2. The system automatically downloads new episodes
-3. Episodes are transcribed and indexed
-4. Use the chat interface to query your podcast library
-5. Browse transcripts with cross-links to related episodes
+1. **Import a podcast**: Click "Import New Podcast" and paste an RSS feed URL
+2. **View podcasts**: Browse your podcast library on the home page
+3. **View episodes**: Click a podcast to see all episodes with audio players
+4. **Manual refresh**: Click "Refresh Episodes" to check for new episodes immediately
+5. **Transcripts**: Episodes are automatically transcribed in the background (stored in `storage/transcripts/`)
 
 ## Development Roadmap
 
-- [ ] Basic Rails application structure
-- [ ] RSS feed ingestion and episode downloading
-- [ ] Whisper integration for transcription
-- [ ] pyannote-audio integration for speaker diarization
-- [ ] Database schema for episodes, transcripts, and topics
+- [x] Basic Rails application structure
+- [x] RSS feed ingestion and episode import
+- [x] Whisper integration for transcription
+- [x] Database schema for podcasts and episodes
+- [x] Background job processing with Solid Queue
+- [x] Web UI for podcast management
+- [x] Daily automatic refresh of feeds
+- [ ] Display transcripts in episode UI
+- [ ] Vector embeddings for semantic search
 - [ ] LLM chat interface
 - [ ] Search and indexing functionality
+- [ ] pyannote-audio integration for speaker diarization
 - [ ] Episode cross-linking
 - [ ] Ad detection and trimming (experimental)
 - [ ] Docker deployment configuration
-- [ ] Web UI for podcast management
 
 ## Architecture
 
 The application follows this workflow:
 
-1. **Ingestion**: RSS feeds are polled for new episodes
-2. **Download**: Audio files are downloaded and stored
-3. **Pre-processing**: (Optional) Ad detection and removal
-4. **Transcription**: Whisper generates text transcripts
-5. **Diarization**: Speaker segments are identified and labeled
-6. **Indexing**: Topics and content are extracted and indexed
-7. **Query**: LLM enables natural language search and discovery
+1. **Ingestion**: RSS feeds are imported and validated
+2. **Import**: Episodes are extracted with metadata (title, description, audio URL, etc.)
+3. **Transcription**: Whisper generates JSON transcripts with timestamps
+4. **Storage**: Transcripts saved as JSON files in `storage/transcripts/`
+5. **Daily Refresh**: Solid Queue checks feeds for new episodes at 2am
+6. **Future: Indexing**: Topics and content will be extracted and indexed
+7. **Future: Query**: LLM will enable natural language search and discovery
+
+### Service Architecture
+
+- `PodcastImportService`: Handles initial RSS import and podcast creation
+- `PodcastRssSyncService`: Refreshes existing podcasts with new episodes
+- `RssParser`: Shared concern for parsing RSS feeds
+- `EpisodeTranscriptionJob`: Background transcription with Whisper
+- `PodcastRefreshJob`: Refreshes a single podcast
+- `RefreshAllPodcastsJob`: Daily job to refresh all podcasts
 
 ## Contributing
 
-This is a personal project in early development. Contributions, ideas, and feedback are welcome as the project takes shape.
+This is a personal project in active development. Contributions, ideas, and feedback are welcome!
 
 ## License
 
@@ -101,12 +154,9 @@ This is a personal project in early development. Contributions, ideas, and feedb
 ## Acknowledgments
 
 - [Whisper](https://github.com/openai/whisper) - Speech recognition
-- [pyannote-audio](https://github.com/pyannote/pyannote-audio) - Speaker diarization
-- [Qwen](https://github.com/QwenLM/Qwen) - LLM capabilities
-
-## Contact
-
-[Your contact information]
+- [pyannote-audio](https://github.com/pyannote/pyannote-audio) - Speaker diarization (planned)
+- [Qwen](https://github.com/QwenLM/Qwen) - LLM capabilities (planned)
+- [PSP-1 Podcast RSS Specification](https://github.com/Podcast-Standards-Project/PSP-1-Podcast-RSS-Specification)
 
 ---
 
