@@ -10,35 +10,25 @@ This project is in active development. Core podcast management and transcription
 
 ### ✅ Implemented
 
-- **RSS Feed Management**: Add and track podcasts via RSS feeds with live import status
-- **Episode Import**: Automatic episode discovery and metadata extraction following PSP-1 RSS spec
-- **Automatic Transcription**: Self-hosted transcription using Whisper with JSON output (text + timestamps)
-- **Daily Refresh**: Automatic daily polling of RSS feeds for new episodes
-- **Web UI**: Bootstrap-powered interface for podcast and episode browsing
-  - Podcast details with cover art and metadata
-  - Episode pages with HTML5 audio player
-  - Pagination and sorting for episode lists
-  - Manual refresh button for on-demand updates
-- **Background Jobs**: Solid Queue for reliable job processing
-  - Import jobs with status tracking
-  - Transcription jobs with format validation
-  - Scheduled daily refresh
-- **URL Normalization**: Prevent duplicate podcasts from similar URLs
+- **RSS Feed Management**: Subscribe to podcasts via RSS with automatic episode discovery
+- **Episode Import**: Extracts metadata, cover art, and audio following PSP-1 spec
+- **Automatic Transcription**: Self-hosted Whisper generates timestamped JSON transcripts
+- **Background Jobs**: Solid Queue handles imports, transcription, and scheduled tasks
+- **Daily Refresh**: Automatically checks for new episodes
+- **Web Interface**: Browse podcasts and episodes with audio player
 
 ### 🚧 In Progress
 
-- **Full Transcript Access**: Display transcripts on episode pages
-- **Speaker Diarization**: Identify and label different speakers using pyannote-audio (planned)
+- **Transcript Display**: Show transcripts on episode pages
+- **Speaker Diarization**: Identify different speakers (planned)
 
 ### 📋 TODO
 
-- **AI-Powered Search**: Query your podcast library with natural language questions
-  - "Which episode did they talk about X?"
-  - Find topics and discussions across all episodes
+- **AI-Powered Search**: Natural language queries across your podcast library
 - **Episode Cross-Linking**: Discover related episodes and topics
 - **Vector Search**: Semantic search using embeddings
-- **LLM Chat Interface**: Natural language queries over podcast content
-- **Ad Detection** (Experimental): Automatic identification and trimming of ad segments
+- **LLM Chat Interface**: Ask questions about podcast content
+- **Ad Detection**: Automatic ad removal using audio cue matching (experimental)
 
 ## Use Cases
 
