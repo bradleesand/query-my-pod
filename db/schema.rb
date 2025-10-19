@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_08_190022) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_19_084226) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -32,6 +32,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_08_190022) do
     t.boolean "block"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "generated_transcript"
+    t.string "transcription_status"
     t.index ["podcast_id", "guid"], name: "index_episodes_on_podcast_id_and_guid"
     t.index ["podcast_id"], name: "index_episodes_on_podcast_id"
   end

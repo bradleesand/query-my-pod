@@ -36,3 +36,4 @@ notes/
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+storage/transcripts/
