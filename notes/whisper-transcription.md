@@ -21,7 +21,7 @@ conda install -c conda-forge openai-whisper
 To manually transcribe an episode:
 
 ```ruby
-EpisodeTranscriptionJob.perform_later(episode_id)
+EpisodeProcessingJob.perform_later(episode_id, [:transcribe])
 ```
 
 ### Batch Transcription
@@ -30,7 +30,7 @@ To transcribe all episodes without transcripts:
 
 ```ruby
 Episode.where(transcription_status: [nil, "failed"]).find_each do |episode|
-  EpisodeTranscriptionJob.perform_later(episode.id)
+  EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 end
 ```
 
@@ -86,7 +86,7 @@ Whisper has several models with different sizes and performance:
 - `medium` - High accuracy
 - `large` - Best accuracy, slowest
 
-Change model in `EpisodeTranscriptionJob`:
+Change model in the `EpisodeTranscriptionService`:
 ```ruby
 whisper "#{audio_file_path}" --model small ...
 ```

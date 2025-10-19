@@ -1,5 +1,11 @@
 Rails.application.routes.draw do
-  resources :episodes
+  resources :episodes do
+    member do
+      post :download_audio
+      post :transcribe
+      get :audio, to: 'episodes#serve_audio'
+    end
+  end
   resources :podcasts do
     member do
       post :refresh

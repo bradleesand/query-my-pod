@@ -1,5 +1,5 @@
 class EpisodesController < ApplicationController
-  before_action :set_episode, only: %i[ show edit update destroy ]
+  before_action :set_episode, only: %i[ show edit update destroy download_audio transcribe serve_audio ]
 
   # GET /episodes or /episodes.json
   def index
@@ -54,6 +54,39 @@ class EpisodesController < ApplicationController
     respond_to do |format|
       format.html { redirect_to episodes_path, notice: "Episode was successfully destroyed.", status: :see_other }
       format.json { head :no_content }
+    end
+  end
+
+  # POST /episodes/1/download_audio
+  def download_audio
+    # Just download, no other steps
+    EpisodeProcessingJob.perform_later(@episode.id, [:download])
+    
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Audio download started." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
+  # POST /episodes/1/transcribe
+  def transcribe
+    # Full pipeline: download, trim ads, transcribe
+    EpisodeProcessingJob.perform_later(@episode.id, [:download, :trim_ads, :transcribe])
+    
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Transcription started." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
+  # GET /episodes/1/audio
+  def serve_audio
+    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path) && @episode.enclosure_type.present?
+      send_file @episode.local_audio_path, 
+                type: @episode.enclosure_type,
+                disposition: 'inline'
+    else
+      redirect_to @episode.enclosure_url, allow_other_host: true
     end
   end
 

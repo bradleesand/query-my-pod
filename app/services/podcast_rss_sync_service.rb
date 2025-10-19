@@ -35,7 +35,7 @@ class PodcastRssSyncService
   private
 
   def update_podcast_metadata(channel)
-    podcast.update(podcast_attributes_from_channel(channel))
+    podcast.update!(podcast_attributes_from_channel(channel))
   end
 
   def create_episode_from_item(item)
