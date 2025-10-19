@@ -69,3 +69,5 @@ gem "dartsass-rails", "~> 0.5.1"
 gem "openssl", "~> 3.3"
 
 gem "pagy", "~> 9.4"
+
+gem "annotate", "~> 2.6", group: :development
