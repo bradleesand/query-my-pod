@@ -1,31 +1,61 @@
 <%
   # Parameters:
-  # - podcast_id: optional, to filter by podcast
-  # - episode_id: optional, to filter by episode
+  # - podcast_id: optional, current podcast context
+  # - episode_id: optional, current episode context
   # - placeholder: optional, custom placeholder text
   podcast_id ||= nil
   episode_id ||= nil
   placeholder ||= "Ask a question about the transcripts..."
+
+  # Build valid context options based on current page
+  context_options = []
+  context_options << ["This Episode", "episode"] if episode_id
+  context_options << ["This Podcast", "podcast"] if podcast_id || episode_id
+  context_options << ["All Podcasts", "all"] if podcast_id || episode_id
+
+  default_context = episode_id ? "episode" : (podcast_id ? "podcast" : "all")
 %>
 
-<div class="card mb-4">
+<div class="card mb-4" data-controller="search-loader">
   <div class="card-body">
     <h5 class="card-title">Search Transcripts</h5>
-    <%= form_with url: search_query_path, method: :get, local: true do |f| %>
-      <%= f.hidden_field :podcast_id, value: podcast_id if podcast_id %>
-      <%= f.hidden_field :episode_id, value: episode_id if episode_id %>
+    <%= form_with url: search_query_path, method: :get,
+        data: {
+          turbo_frame: "search_results",
+          action: "turbo:submit-start->search-loader#showSpinner turbo:submit-end->search-loader#hideSpinner"
+        } do |f| %>
+      <%= f.hidden_field :current_podcast_id, value: podcast_id if podcast_id %>
+      <%= f.hidden_field :current_episode_id, value: episode_id if episode_id %>
 
-      <div class="input-group">
+      <div class="input-group mb-2">
         <%= f.text_field :q,
             class: "form-control",
             placeholder: placeholder,
             required: true %>
-        <%= f.submit "Search", class: "btn btn-primary" %>
+        <% if context_options.any? %>
+          <%= f.select :context,
+              context_options,
+              { selected: default_context },
+              { class: "form-select", style: "max-width: 150px;" } %>
+        <% else %>
+          <%= f.hidden_field :context, value: default_context %>
+        <% end %>
+        <%= f.submit "Search", class: "btn btn-primary", data: { turbo_submits_with: "Searching..." } %>
       </div>
 
-      <div class="form-text mt-2">
+      <div class="form-text">
         AI-powered semantic search with citations
       </div>
+    <% end %>
+
+    <div class="d-none text-center my-4" data-search-loader-target="spinner">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Searching transcripts and generating response...</p>
+    </div>
+
+    <%= turbo_frame_tag "search_results" do %>
     <% end %>
   </div>
 </div>

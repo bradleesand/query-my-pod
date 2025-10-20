@@ -1,12 +1,30 @@
 class SearchController < ApplicationController
   def query
     @query = params[:q]
-    @podcast_id = params[:podcast_id].presence
-    @episode_id = params[:episode_id].presence
+    @context = params[:context] || "all"
+    @current_podcast_id = params[:current_podcast_id].presence
+    @current_episode_id = params[:current_episode_id].presence
     @limit = params[:limit]&.to_i || ENV.fetch("SEARCH_CONTEXT_CHUNKS", 5).to_i
 
+    # Determine actual search scope based on context
+    case @context
+    when "episode"
+      @podcast_id = nil
+      @episode_id = @current_episode_id
+    when "podcast"
+      @podcast_id = @current_podcast_id
+      @episode_id = nil
+    when "all"
+      @podcast_id = nil
+      @episode_id = nil
+    end
+
     if @query.blank?
-      redirect_back fallback_location: root_path, alert: "Please enter a search query"
+      if turbo_frame_request?
+        render partial: "search/results", locals: { error: "Please enter a search query", llm_response: nil, query: @query, podcast_id: @podcast_id, episode_id: @episode_id }
+      else
+        redirect_back fallback_location: root_path, alert: "Please enter a search query"
+      end
       return
     end
 
@@ -19,6 +37,9 @@ class SearchController < ApplicationController
 
     if @search_results.empty?
       @error = "No results found for your query"
+      if turbo_frame_request?
+        render partial: "search/results", locals: { error: @error, llm_response: nil, query: @query, podcast_id: @podcast_id, episode_id: @episode_id }
+      end
       return
     end
 
@@ -30,6 +51,11 @@ class SearchController < ApplicationController
       @error = @llm_response[:error]
     end
 
-    @podcasts = Podcast.all.order(:title)
+    if turbo_frame_request?
+      render partial: "search/results", locals: { error: @error, llm_response: @llm_response, query: @query, podcast_id: @podcast_id, episode_id: @episode_id }
+    else
+      # Full page render for non-turbo requests
+      @podcasts = Podcast.all.order(:title)
+    end
   end
 end

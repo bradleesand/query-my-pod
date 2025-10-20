@@ -1,0 +1,40 @@
+<%
+  # Parameters:
+  # - query: the search query text
+  # - podcast_id: optional podcast filter
+  # - episode_id: optional episode filter
+  # - error: optional error message
+  # - llm_response: hash with :response and :sources
+%>
+
+<%= turbo_frame_tag "search_results" do %>
+  <% if error %>
+    <div class="alert alert-danger"><%= error %></div>
+  <% elsif llm_response %>
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">AI Response</h5>
+      </div>
+      <div class="card-body">
+        <%= simple_format(llm_response[:response], class: "mb-0") %>
+      </div>
+    </div>
+
+    <h5 class="mt-4 mb-3">Sources</h5>
+    <% llm_response[:sources].each do |source| %>
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 text-muted">[<%= source[:index] %>]</h6>
+          <h5 class="card-title">
+            <%= link_to source[:episode_title], episode_path(source[:episode]) %>
+          </h5>
+          <p class="text-muted mb-2">
+            <%= link_to source[:podcast_title], podcast_path(source[:podcast]), class: "text-decoration-none" %> • <%= source[:timestamp] %>
+          </p>
+          <p class="card-text"><%= source[:text] %></p>
+          <small class="text-muted">Similarity: <%= number_to_percentage((1 - source[:distance]) * 100, precision: 1) %></small>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+<% end %>
