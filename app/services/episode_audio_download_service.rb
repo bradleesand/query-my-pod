@@ -43,9 +43,9 @@ class EpisodeAudioDownloadService
       
       local_path
     rescue => e
-      episode.download_failed!
       Rails.logger.error("Failed to download audio for episode #{episode.id}: #{e.message}")
-      raise e
+      episode.download_failed!
+      false
     end
   end
 
@@ -70,10 +70,8 @@ class EpisodeAudioDownloadService
   end
 
   def download_to_storage
-    require "net/http"
-    require "uri"
+    require "open-uri"
 
-    uri = URI.parse(episode.enclosure_url)
     destination_path = local_audio_path
     
     # This should not happen as we check in download(), but guard anyway
@@ -82,24 +80,18 @@ class EpisodeAudioDownloadService
     # Ensure directory exists
     FileUtils.mkdir_p(File.dirname(destination_path))
 
-    # Download file
-    File.open(destination_path, "wb") do |file|
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https") do |http|
-        request = Net::HTTP::Get.new(uri)
-        
-        http.request(request) do |response|
-          unless response.is_a?(Net::HTTPSuccess)
-            raise "Failed to download audio: #{response.code}"
-          end
-          
-          response.read_body do |chunk|
-            file.write(chunk)
-          end
-        end
-      end
+    # Download file with automatic redirect following
+    URI.open(episode.enclosure_url, "rb") do |source|
+      File.binwrite(destination_path, source.read)
     end
-
+    
     destination_path
+  rescue OpenURI::HTTPError => e
+    Rails.logger.error("HTTP error downloading episode #{episode.id}: #{e.message} (URL: #{episode.enclosure_url})")
+    raise "Failed to download audio: #{e.message}"
+  rescue => e
+    Rails.logger.error("Error downloading episode #{episode.id}: #{e.class} - #{e.message} (URL: #{episode.enclosure_url})")
+    raise
   end
 
   def calculate_checksum(file_path)

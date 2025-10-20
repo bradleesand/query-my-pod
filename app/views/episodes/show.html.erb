@@ -39,47 +39,9 @@
       </div>
     </div>
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <h6 class="card-subtitle mb-3 text-muted">Processing Status</h6>
-        
-        <div class="mb-3">
-          <small class="text-muted d-block mb-1">Audio Download</small>
-          <% if @episode.download_status.present? %>
-            <span class="badge bg-<%= download_status_color(@episode.download_status) %>">
-              <%= @episode.download_status.titleize %>
-            </span>
-          <% else %>
-            <span class="badge bg-secondary">Not Started</span>
-          <% end %>
-          
-          <% if !@episode.download_completed? && !@episode.download_downloading? %>
-            <%= button_to "Download Audio", download_audio_episode_path(@episode), 
-                method: :post, 
-                class: "btn btn-sm btn-outline-primary mt-2 w-100",
-                form: { data: { turbo_confirm: "Download audio file to local storage?" } } %>
-          <% end %>
-        </div>
-
-        <div>
-          <small class="text-muted d-block mb-1">Transcription</small>
-          <% if @episode.transcription_status.present? %>
-            <span class="badge bg-<%= transcription_status_color(@episode.transcription_status) %>">
-              <%= @episode.transcription_status.titleize %>
-            </span>
-          <% else %>
-            <span class="badge bg-secondary">Not Started</span>
-          <% end %>
-          
-          <% if !@episode.transcription_completed? && !@episode.transcription_processing? %>
-            <%= button_to "Transcribe", transcribe_episode_path(@episode), 
-                method: :post, 
-                class: "btn btn-sm btn-outline-primary mt-2 w-100",
-                form: { data: { turbo_confirm: "Start transcription?" } } %>
-          <% end %>
-        </div>
-      </div>
-    </div>
+    <%= turbo_stream_from "episode_#{@episode.id}_status" %>
+    
+    <%= render "episodes/status", episode: @episode %>
     
     <div class="card">
       <div class="card-body">

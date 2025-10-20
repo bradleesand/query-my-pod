@@ -40,6 +40,7 @@ class Episode < ApplicationRecord
   belongs_to :podcast
 
   after_create :enqueue_background_jobs
+  after_update_commit :broadcast_status_update
 
   enum :transcription_status, {
     pending: "pending",
@@ -100,5 +101,17 @@ class Episode < ApplicationRecord
     if steps.any?
       EpisodeProcessingJob.perform_later(id, steps)
     end
+  end
+
+  def broadcast_status_update
+    # Only broadcast if download_status or transcription_status changed
+    return unless saved_change_to_download_status? || saved_change_to_transcription_status?
+    
+    broadcast_replace_to(
+      "episode_#{id}_status",
+      target: "episode_#{id}_status",
+      partial: "episodes/status",
+      locals: { episode: self }
+    )
   end
 end

@@ -34,9 +34,9 @@ class EpisodeTranscriptionService
       
       episode.transcription_completed!
     rescue => e
-      episode.transcription_failed!
       Rails.logger.error("Failed to transcribe episode #{episode.id}: #{e.message}")
-      raise e
+      episode.transcription_failed!
+      false
     ensure
       # Clean up temporary files if we downloaded to temp
       cleanup_temp_file(audio_path) if audio_path && temp_file?(audio_path)
@@ -65,15 +65,7 @@ class EpisodeTranscriptionService
   end
 
   def download_to_temp
-    require "net/http"
-    require "tempfile"
-
-    uri = URI.parse(episode.enclosure_url)
-    response = Net::HTTP.get_response(uri)
-
-    unless response.is_a?(Net::HTTPSuccess)
-      raise "Failed to download audio: #{response.code}"
-    end
+    require "open-uri"
 
     extension = file_extension_for_type(episode.enclosure_type)
     
@@ -82,10 +74,23 @@ class EpisodeTranscriptionService
     
     tempfile = Tempfile.new(["episode_audio", extension])
     tempfile.binmode
-    tempfile.write(response.body)
-    tempfile.close
     
+    URI.open(episode.enclosure_url, "rb") do |source|
+      tempfile.write(source.read)
+    end
+    
+    tempfile.close
     tempfile.path
+  rescue OpenURI::HTTPError => e
+    Rails.logger.error("HTTP error downloading episode #{episode.id} to temp: #{e.message} (URL: #{episode.enclosure_url})")
+    tempfile&.close
+    tempfile&.unlink
+    raise "Failed to download audio: #{e.message}"
+  rescue => e
+    Rails.logger.error("Error downloading episode #{episode.id} to temp: #{e.class} - #{e.message} (URL: #{episode.enclosure_url})")
+    tempfile&.close
+    tempfile&.unlink
+    raise
   end
 
   def temp_file?(path)

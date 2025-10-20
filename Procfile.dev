@@ -1,2 +1,2 @@
-web: bin/rails server -p 3000
+web: env SOLID_QUEUE_IN_PUMA=1 bin/rails server -p 3000
 css: bin/rails dartsass:watch
