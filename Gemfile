@@ -71,3 +71,7 @@ gem "openssl", "~> 3.3"
 gem "pagy", "~> 9.4"
 
 gem "annotate", "~> 2.6", group: :development
+
+# Vector similarity search
+gem "neighbor"
+gem "sqlite-vec", "~> 0.1", platforms: [:ruby]
