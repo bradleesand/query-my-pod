@@ -95,6 +95,8 @@ class LlmQueryService
     @search_results.map.with_index do |result, i|
       {
         index: i + 1,
+        episode: result[:episode],
+        podcast: result[:podcast],
         episode_title: result[:episode].title,
         podcast_title: result[:podcast].title,
         start_time: result[:start_time],
