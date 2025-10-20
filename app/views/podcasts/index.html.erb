@@ -11,6 +11,8 @@
 
 <%= turbo_frame_tag "new_podcast_import" %>
 
+<%= render "search/search_form", placeholder: "Search across all podcasts..." %>
+
 <% if @pending_imports.any? %>
   <div class="mb-4">
     <h5>Active Imports</h5>

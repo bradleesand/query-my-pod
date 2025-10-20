@@ -85,7 +85,9 @@
         </div>
       </div>
     <% end %>
-    
+
+    <%= render "search/search_form", episode_id: @episode.id, placeholder: "Search in this episode..." %>
+
     <% if @episode.description.present? %>
       <div class="card mb-4">
         <div class="card-body">

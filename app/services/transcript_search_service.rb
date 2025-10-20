@@ -2,6 +2,7 @@ class TranscriptSearchService
   def initialize(query_text, options = {})
     @query_text = query_text
     @podcast_id = options[:podcast_id]
+    @episode_id = options[:episode_id]
     @limit = options[:limit] || 5
     @embedding_service = EmbeddingService.new
   end
@@ -16,8 +17,11 @@ class TranscriptSearchService
     # Build base query for chunks with embeddings
     chunks = TranscriptChunk.where.not(embedding: nil)
 
+    # Filter by episode if specified (most specific)
+    if @episode_id
+      chunks = chunks.where(episode_id: @episode_id)
     # Filter by podcast if specified
-    if @podcast_id
+    elsif @podcast_id
       chunks = chunks.joins(:episode).where(episodes: { podcast_id: @podcast_id })
     end
 

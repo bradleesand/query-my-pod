@@ -1,0 +1,31 @@
+<%
+  # Parameters:
+  # - podcast_id: optional, to filter by podcast
+  # - episode_id: optional, to filter by episode
+  # - placeholder: optional, custom placeholder text
+  podcast_id ||= nil
+  episode_id ||= nil
+  placeholder ||= "Ask a question about the transcripts..."
+%>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Search Transcripts</h5>
+    <%= form_with url: search_query_path, method: :get, local: true do |f| %>
+      <%= f.hidden_field :podcast_id, value: podcast_id if podcast_id %>
+      <%= f.hidden_field :episode_id, value: episode_id if episode_id %>
+
+      <div class="input-group">
+        <%= f.text_field :q,
+            class: "form-control",
+            placeholder: placeholder,
+            required: true %>
+        <%= f.submit "Search", class: "btn btn-primary" %>
+      </div>
+
+      <div class="form-text mt-2">
+        AI-powered semantic search with citations
+      </div>
+    <% end %>
+  </div>
+</div>
