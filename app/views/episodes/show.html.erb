@@ -99,26 +99,22 @@
       </div>
     <% end %>
 
-    <% if @episode.transcript_url.present? %>
-      <div class="card mb-4">
-        <div class="card-body">
-          <h6 class="card-subtitle mb-2 text-muted">Podcast Transcript</h6>
-          <iframe src="<%= @episode.transcript_url %>" 
-                  class="w-100 border-0" 
-                  style="height: 500px; max-height: 70vh;"
-                  sandbox="allow-same-origin allow-scripts"
-                  title="Episode Transcript">
-          </iframe>
-        </div>
-      </div>
-    <% end %>
 
-    <% if @episode.transcription_completed? && @episode.transcript_text.present? %>
+    <% if @episode.transcription_completed? && @episode.transcript_chunks.any? %>
       <div class="card mb-4">
         <div class="card-body">
           <h6 class="card-subtitle mb-2 text-muted">Generated Transcript</h6>
-          <div class="transcript-text" style="max-height: 400px; overflow-y: auto;">
-            <%= simple_format(@episode.transcript_text) %>
+          <div class="transcript-text"
+               id="transcript-container"
+               data-controller="transcript-highlight"
+               style="max-height: 400px; overflow-y: auto;">
+            <% @episode.transcript_chunks.order(:start_time).each do |chunk| %>
+              <span class="transcript-chunk"
+                    id="chunk-<%= chunk.id %>"
+                    data-chunk-id="<%= chunk.id %>"
+                    data-start-time="<%= chunk.start_time %>"
+                    data-end-time="<%= chunk.end_time %>"><%= chunk.text %></span>
+            <% end %>
           </div>
         </div>
       </div>

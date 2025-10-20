@@ -1,0 +1,20 @@
+/* Transcript chunk highlighting */
+.transcript-chunk {
+  transition: background-color 0.3s ease;
+}
+
+.chunk-highlighted {
+  background-color: #fff3cd;
+  padding: 2px 4px;
+  border-radius: 3px;
+  animation: highlight-fade 2s ease-in-out;
+}
+
+@keyframes highlight-fade {
+  0% {
+    background-color: #ffc107;
+  }
+  100% {
+    background-color: #fff3cd;
+  }
+}
