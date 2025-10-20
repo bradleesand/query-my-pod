@@ -83,20 +83,26 @@ class Episode < ApplicationRecord
 
   def enqueue_background_jobs
     return unless enclosure_url.present?
-    
+
     # Build the processing pipeline based on env vars
     steps = []
-    
+
     if ENV.fetch("AUTO_DOWNLOAD_AUDIO", "false") == "true"
       steps << :download
     end
-    
+
     # Always include transcription if enabled
     # (it will handle its own downloading if AUTO_DOWNLOAD_AUDIO is false)
     if ENV.fetch("AUTO_TRANSCRIBE", "false") == "true"
       steps << :transcribe
+
+      # If semantic search is enabled, automatically chunk and generate embeddings after transcription
+      if ENV.fetch("ENABLE_SEMANTIC_SEARCH", "false") == "true"
+        steps << :chunk_transcript
+        steps << :generate_embeddings
+      end
     end
-    
+
     # Enqueue the processing job with the appropriate steps
     if steps.any?
       EpisodeProcessingJob.perform_later(id, steps)
