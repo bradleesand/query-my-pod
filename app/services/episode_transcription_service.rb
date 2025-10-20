@@ -102,22 +102,29 @@ class EpisodeTranscriptionService
   end
 
   def transcribe_with_whisper(audio_file_path)
-    result = `whisper "#{audio_file_path}" --model base --output_format json --output_dir /tmp 2>&1`
-    
+    output_dir = "/tmp"
+    result = `whisper "#{audio_file_path}" --model base --output_format json --output_dir #{output_dir} 2>&1`
+
     unless $?.success?
       raise "Whisper transcription failed: #{result}"
     end
-    
-    # Read the generated JSON file
-    json_file = audio_file_path.gsub(/\.[^.]+$/, ".json")
+
+    # Read the generated JSON file from the output directory
+    # Whisper creates files named: basename_of_audio.json
+    audio_basename = File.basename(audio_file_path, ".*")
+    json_file = File.join(output_dir, "#{audio_basename}.json")
+
+    unless File.exist?(json_file)
+      raise "Whisper output file not found: #{json_file}"
+    end
+
     transcript_json = File.read(json_file)
-    File.delete(json_file) if File.exist?(json_file)
-    
+    File.delete(json_file)
+
     transcript_json
   end
 
   def save_transcript(content)
-    FileUtils.mkdir_p(File.dirname(episode.transcript_file_path))
-    File.write(episode.transcript_file_path, content)
+    episode.update!(generated_transcript: content)
   end
 end

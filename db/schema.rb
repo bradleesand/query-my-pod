@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_19_193149) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_20_014703) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -68,6 +68,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_19_193149) do
     t.index ["guid"], name: "index_podcasts_on_guid", unique: true
   end
 
+  create_table "transcript_chunks", force: :cascade do |t|
+    t.integer "episode_id", null: false
+    t.text "text", null: false
+    t.text "embedding"
+    t.float "start_time"
+    t.float "end_time"
+    t.integer "chunk_index"
+    t.string "chunk_type", default: "transcript"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chunk_type"], name: "index_transcript_chunks_on_chunk_type"
+    t.index ["episode_id"], name: "index_transcript_chunks_on_episode_id"
+    t.index ["start_time"], name: "index_transcript_chunks_on_start_time"
+  end
+
   add_foreign_key "episodes", "podcasts"
   add_foreign_key "podcast_import_tasks", "podcasts"
+  add_foreign_key "transcript_chunks", "episodes"
 end

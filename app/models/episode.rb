@@ -38,6 +38,7 @@
 
 class Episode < ApplicationRecord
   belongs_to :podcast
+  has_many :transcript_chunks, dependent: :destroy
 
   after_create :enqueue_background_jobs
   after_update_commit :broadcast_status_update
@@ -56,15 +57,14 @@ class Episode < ApplicationRecord
     failed: "failed"
   }, prefix: :download
 
-  def transcript_file_path
-    Rails.root.join("storage", "transcripts", "#{id}.json")
+  def transcript_content
+    return nil unless transcription_completed? && generated_transcript.present?
+    JSON.parse(generated_transcript)
+  rescue JSON::ParserError => e
+    Rails.logger.error("Failed to parse transcript JSON for episode #{id}: #{e.message}")
+    nil
   end
 
-  def transcript_content
-    return nil unless transcription_completed? && transcript_file_path.exist?
-    JSON.parse(File.read(transcript_file_path))
-  end
-  
   def transcript_text
     return nil unless transcript_content
     transcript_content["text"]

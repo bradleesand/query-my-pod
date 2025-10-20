@@ -5,7 +5,9 @@ class EpisodeProcessingJob < ApplicationJob
   STEPS = {
     download: :download_audio,
     trim_ads: :trim_ads,
-    transcribe: :transcribe_audio
+    transcribe: :transcribe_audio,
+    chunk_transcript: :chunk_transcript,
+    generate_embeddings: :generate_embeddings
   }.freeze
 
   # Default pipeline for full processing
@@ -65,11 +67,47 @@ class EpisodeProcessingJob < ApplicationJob
 
   def transcribe_audio
     return true if @episode.transcription_completed?
-    
+
     Rails.logger.info("Transcribing episode #{@episode.id}")
     EpisodeTranscriptionService.new(@episode).transcribe
-    
+
     # Return true if transcription succeeded
     @episode.reload.transcription_completed?
+  end
+
+  def chunk_transcript
+    return true if @episode.transcript_chunks.any?
+
+    Rails.logger.info("Chunking transcript for episode #{@episode.id}")
+    TranscriptChunkingService.new(@episode).chunk
+  end
+
+  def generate_embeddings
+    chunks_without_embeddings = @episode.transcript_chunks.where(embedding: nil)
+
+    if chunks_without_embeddings.empty?
+      Rails.logger.info("All chunks already have embeddings for episode #{@episode.id}")
+      return true
+    end
+
+    Rails.logger.info("Generating embeddings for #{chunks_without_embeddings.count} chunks in episode #{@episode.id}")
+
+    embedding_service = EmbeddingService.new
+    chunks_without_embeddings.find_each do |chunk|
+      embedding = embedding_service.generate(chunk.text)
+
+      if embedding
+        chunk.update!(embedding: embedding.to_json)
+      else
+        Rails.logger.error("Failed to generate embedding for chunk #{chunk.id}")
+        return false
+      end
+    end
+
+    Rails.logger.info("Successfully generated embeddings for episode #{@episode.id}")
+    true
+  rescue => e
+    Rails.logger.error("Failed to generate embeddings for episode #{@episode.id}: #{e.message}")
+    false
   end
 end

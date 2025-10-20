@@ -77,12 +77,18 @@ rails console -e production
 - Status tracking via enums:
   - `transcription_status`: pending → processing → completed/failed
   - `download_status`: pending → downloading → completed/failed
-- Transcripts stored in `storage/transcripts/{id}.json`
+- Transcripts stored in `generated_transcript` column as JSON
 - Local audio stored in `local_audio_path` when downloaded
 - After creation, automatically enqueues processing based on env vars
 
 **PodcastImportTask** (app/models/podcast_import_task.rb)
 - Tracks import job status for new podcast feeds
+
+**TranscriptChunk** (app/models/transcript_chunk.rb)
+- Stores chunked transcript segments for semantic search
+- One chunk per Whisper segment
+- Contains: text, start_time, end_time, chunk_index, embedding (for Phase 2)
+- Belongs to Episode, has one Podcast through Episode
 
 ### Processing Pipeline
 
@@ -92,6 +98,8 @@ Episodes are processed through `EpisodeProcessingJob` with a flexible step-based
 - `:download` - Download audio to local storage
 - `:trim_ads` - Remove ads using audio cue detection (planned, currently no-op)
 - `:transcribe` - Generate transcript with Whisper
+- `:chunk_transcript` - Split transcript into searchable chunks (Phase 1 of RAG)
+- `:generate_embeddings` - Generate vector embeddings for chunks (Phase 2 of RAG, not yet implemented)
 
 **Pipeline Flow:**
 1. Episode created from RSS feed
@@ -130,8 +138,19 @@ EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 **EpisodeTranscriptionService** (app/services/episode_transcription_service.rb)
 - Orchestrates transcription workflow
 - Calls Whisper via shell command
-- Stores JSON transcript in `storage/transcripts/`
+- Stores JSON transcript in `episodes.generated_transcript` column
 - Updates `transcription_status` enum
+
+**TranscriptChunkingService** (app/services/transcript_chunking_service.rb)
+- Splits Whisper transcripts into searchable chunks
+- Creates one TranscriptChunk per Whisper segment
+- Stores text and timestamps for each chunk
+
+**EmbeddingService** (app/services/embedding_service.rb)
+- Wraps Python sentence-transformers for embedding generation
+- Uses `all-MiniLM-L6-v2` model (384 dimensions)
+- Generates vector embeddings for transcript chunks
+- Stores embeddings as JSON arrays in database
 
 ### Background Jobs (Solid Queue)
 
@@ -167,6 +186,8 @@ EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 - `ENABLE_TRANSCRIPTION=true` - Enable transcription feature
 - `AUTO_DOWNLOAD_AUDIO=false` - Auto-download new episode audio
 - `DOWNLOAD_AUDIO=false` - Keep audio files after transcription (vs temp download)
+- `ENABLE_SEMANTIC_SEARCH=false` - Enable RAG features (requires Python setup)
+- `PYTHON_PATH=venv/bin/python3` - Path to Python for embedding generation
 
 **Recurring Jobs** (config/recurring.yml):
 - `RefreshAllPodcastsJob` runs daily at 2am
@@ -185,9 +206,9 @@ EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 
 ### Storage
 
-- `storage/transcripts/{episode_id}.json` - Whisper transcripts
+- Transcripts stored in `episodes.generated_transcript` column (JSON text)
 - `storage/episodes/{podcast_id}/{episode_id}.{ext}` - Local audio (when DOWNLOAD_AUDIO=true)
-- Local paths stored in Episode model's `local_audio_path`
+- Local audio paths stored in Episode model's `local_audio_path`
 
 ### Tech Stack
 
@@ -221,6 +242,29 @@ Use Rails console to manually process episodes:
 ```ruby
 episode = Episode.find(123)
 EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
+
+# Process with chunking
+EpisodeProcessingJob.perform_later(episode.id, [:transcribe, :chunk_transcript])
+```
+
+### Chunking Existing Transcripts
+
+Use the rake task to chunk all existing transcripts:
+```bash
+rails transcripts:chunk
+```
+
+### Generating Embeddings
+
+Generate embeddings for all chunks:
+```bash
+# First time: install Python dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install sentence-transformers torch
+
+# Generate embeddings
+rails transcripts:generate_embeddings
 ```
 
 ## Future Planned Features
