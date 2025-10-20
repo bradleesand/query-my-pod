@@ -73,18 +73,6 @@
     <p class="text-muted">
       <%= link_to @episode.podcast.title, @episode.podcast, class: "text-decoration-none" %>
     </p>
-    
-    <% if @episode.enclosure_url.present? %>
-      <div class="card mb-4">
-        <div class="card-body">
-          <h6 class="card-subtitle mb-3 text-muted">Audio Player</h6>
-          <audio controls class="w-100" preload="metadata">
-            <source src="<%= @episode.audio_url %>" type="<%= @episode.enclosure_type || 'audio/mpeg' %>">
-            Your browser does not support the audio element.
-          </audio>
-        </div>
-      </div>
-    <% end %>
 
     <%= render "search/search_form", episode_id: @episode.id, placeholder: "Search in this episode..." %>
 
@@ -99,6 +87,17 @@
       </div>
     <% end %>
 
+    <% if @episode.enclosure_url.present? %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-3 text-muted">Audio Player</h6>
+          <audio controls class="w-100" preload="metadata">
+            <source src="<%= @episode.audio_url %>" type="<%= @episode.enclosure_type || 'audio/mpeg' %>">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      </div>
+    <% end %>
 
     <% if @episode.transcription_completed? && @episode.transcript_chunks.any? %>
       <div class="card mb-4">

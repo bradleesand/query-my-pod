@@ -3,14 +3,25 @@
   transition: background-color 0.3s ease;
 }
 
-.chunk-highlighted {
+/* Highlight from audio playback - subtle, no animation */
+.chunk-highlighted-playback {
+  background-color: #e7f3ff;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border-left: 3px solid #0d6efd;
+}
+
+/* Highlight from URL navigation (search results) - dramatic animation */
+/* This comes after playback so it takes precedence when both classes are present */
+.chunk-highlighted-nav {
   background-color: #fff3cd;
   padding: 2px 4px;
   border-radius: 3px;
-  animation: highlight-fade 2s ease-in-out;
+  border-left: none;
+  animation: highlight-fade-nav 2s ease-in-out;
 }
 
-@keyframes highlight-fade {
+@keyframes highlight-fade-nav {
   0% {
     background-color: #ffc107;
   }

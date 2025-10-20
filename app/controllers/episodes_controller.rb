@@ -82,9 +82,41 @@ class EpisodesController < ApplicationController
   # GET /episodes/1/audio
   def serve_audio
     if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path) && @episode.enclosure_type.present?
-      send_file @episode.local_audio_path, 
-                type: @episode.enclosure_type,
-                disposition: 'inline'
+      # Support HTTP range requests for audio seeking
+      file_path = @episode.local_audio_path
+      file_size = File.size(file_path)
+
+      # Check if this is a range request
+      if request.headers['Range']
+        # Parse the range header (format: "bytes=start-end")
+        range = request.headers['Range']
+        match = range.match(/bytes=(\d+)-(\d*)/)
+
+        if match
+          range_start = match[1].to_i
+          range_end = match[2].present? ? match[2].to_i : file_size - 1
+          range_end = [range_end, file_size - 1].min
+
+          content_length = range_end - range_start + 1
+
+          response.headers['Content-Range'] = "bytes #{range_start}-#{range_end}/#{file_size}"
+          response.headers['Accept-Ranges'] = 'bytes'
+          response.headers['Content-Length'] = content_length.to_s
+
+          send_data File.binread(file_path, content_length, range_start),
+                    type: @episode.enclosure_type,
+                    disposition: 'inline',
+                    status: :partial_content
+        else
+          head :bad_request
+        end
+      else
+        # Normal request without range
+        response.headers['Accept-Ranges'] = 'bytes'
+        send_file file_path,
+                  type: @episode.enclosure_type,
+                  disposition: 'inline'
+      end
     else
       redirect_to @episode.enclosure_url, allow_other_host: true
     end
