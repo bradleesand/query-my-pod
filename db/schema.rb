@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_20_075238) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_21_073914) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -78,6 +78,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_20_075238) do
     t.string "chunk_type", default: "transcript"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "ad_confidence"
     t.index ["chunk_type"], name: "index_transcript_chunks_on_chunk_type"
     t.index ["episode_id", "start_time"], name: "index_transcript_chunks_on_episode_id_and_start_time"
     t.index ["episode_id"], name: "index_transcript_chunks_on_episode_id"

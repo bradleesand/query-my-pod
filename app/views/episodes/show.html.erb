@@ -108,11 +108,14 @@
                data-controller="transcript-highlight"
                style="max-height: 400px; overflow-y: auto;">
             <% @episode.transcript_chunks.order(:start_time).each do |chunk| %>
-              <span class="transcript-chunk"
+              <span class="transcript-chunk <%= 'transcript-chunk-ad' if chunk.advertisement? %>"
                     id="chunk-<%= chunk.id %>"
                     data-chunk-id="<%= chunk.id %>"
                     data-start-time="<%= chunk.start_time %>"
-                    data-end-time="<%= chunk.end_time %>"><%= chunk.text %></span>
+                    data-end-time="<%= chunk.end_time %>"
+                    <% if chunk.advertisement? %>
+                      title="Advertisement (confidence: <%= (chunk.ad_confidence * 100).round(1) %>%)"
+                    <% end %>><%= chunk.text %></span>
             <% end %>
           </div>
         </div>

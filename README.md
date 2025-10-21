@@ -20,7 +20,8 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 - **Automatic Transcription**: Self-hosted Whisper generates timestamped JSON transcripts
 - **Transcript Chunking**: Automatically segments transcripts into searchable chunks
 - **Vector Embeddings**: Generates semantic embeddings using sentence-transformers
-- **Flexible Pipeline**: Composable processing steps (download → transcribe → chunk → embed)
+- **Ad Detection**: LLM-powered advertisement detection with confidence scores
+- **Flexible Pipeline**: Composable processing steps (download → transcribe → chunk → detect ads → embed)
 
 #### AI-Powered Search
 - **Semantic Search**: Vector similarity search using SQLite with neighbor gem
@@ -45,6 +46,7 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 
 ### 📋 Potential Future Enhancements
 
+- **Metadata-Weighted Search**: Use episode title/description chunks to boost relevance scores for matching episodes in semantic search
 - **Advanced Search Features**: Filter by date, podcast, keywords
 - **Search History**: Track and revisit previous searches
 - **Saved Searches**: Bookmark frequently used queries
@@ -134,6 +136,10 @@ PYTHON_PATH=venv/bin/python3   # Path to Python in virtual environment
 OLLAMA_API_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:7b        # LLM model (qwen2.5:7b recommended)
 SEARCH_CONTEXT_CHUNKS=5        # Number of chunks for context
+
+# Ad Detection Configuration
+ENABLE_AD_DETECTION=false      # Enable automatic ad detection
+AD_DETECTION_THRESHOLD=0.7     # Confidence threshold (0.0-1.0) for marking as ad
 ```
 
 **Recommended Configuration for Full Features:**
@@ -192,6 +198,34 @@ rails transcripts:generate_embeddings_all
 rails runner "EpisodeProcessingJob.perform_now(episode_id, [:chunk_transcript, :generate_embeddings])"
 ```
 
+### Ad Detection
+
+Detect advertisements in transcripts using LLM analysis:
+
+```bash
+# Detect ads in all transcribed episodes
+rails ads:detect_all
+
+# Detect ads in a specific episode
+rails ads:detect_episode[EPISODE_ID]
+
+# Review detected advertisements
+rails ads:review
+
+# Show detection statistics by podcast
+rails ads:stats
+
+# Reset ad detection for an episode
+rails ads:reset_episode[EPISODE_ID]
+```
+
+**How it works:**
+- Uses your local LLM (Ollama) to analyze transcript chunks
+- Identifies sponsor mentions, promo codes, and promotional content
+- Stores confidence scores (0.0-1.0) for each chunk
+- Advertisements are excluded from search results by default
+- Ad chunks are styled differently in the transcript view (gray, italic)
+
 ## Architecture
 
 ### Processing Pipeline
@@ -200,9 +234,10 @@ Episodes are processed through a flexible pipeline system via `EpisodeProcessing
 
 **Available Steps:**
 - `:download` - Download audio to local storage
-- `:trim_ads` - Remove ads using audio cue detection (experimental)
+- `:trim_ads` - Remove ads using audio cue detection (experimental, not yet implemented)
 - `:transcribe` - Generate transcript with Whisper
 - `:chunk_transcript` - Split transcript into searchable segments
+- `:detect_ads_in_transcript` - Detect advertisements using LLM analysis
 - `:generate_embeddings` - Create vector embeddings for semantic search
 
 **Example Pipelines:**
@@ -277,10 +312,11 @@ EpisodeProcessingJob.perform_later(episode_id, [:transcribe])
 - [x] Search and indexing functionality
 - [x] Interactive transcript with audio synchronization
 - [x] HTTP range requests for efficient seeking
+- [x] LLM-based advertisement detection in transcripts
 - [ ] Enhanced search UI (filters, history, saved searches)
 - [ ] pyannote-audio integration for speaker diarization
 - [ ] Episode cross-linking and recommendations
-- [ ] Ad detection and trimming (experimental)
+- [ ] Audio-based ad trimming (fingerprinting approach)
 - [ ] Docker deployment configuration
 - [ ] API access layer
 

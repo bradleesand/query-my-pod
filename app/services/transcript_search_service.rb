@@ -4,6 +4,7 @@ class TranscriptSearchService
     @podcast_id = options[:podcast_id]
     @episode_id = options[:episode_id]
     @limit = options[:limit] || 5
+    @include_ads = options[:include_ads] || false
     @embedding_service = EmbeddingService.new
   end
 
@@ -16,6 +17,9 @@ class TranscriptSearchService
 
     # Build base query for chunks with embeddings
     chunks = TranscriptChunk.where.not(embedding: nil)
+
+    # Exclude advertisements by default unless specifically requested
+    chunks = chunks.content unless @include_ads
 
     # Filter by episode if specified (most specific)
     if @episode_id

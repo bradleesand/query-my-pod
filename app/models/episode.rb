@@ -87,17 +87,17 @@ class Episode < ApplicationRecord
     # Build the processing pipeline based on env vars
     steps = []
 
-    if ENV.fetch("AUTO_DOWNLOAD_AUDIO", "false") == "true"
+    if AppConfig.auto_download_audio?
       steps << :download
     end
 
     # Always include transcription if enabled
     # (it will handle its own downloading if AUTO_DOWNLOAD_AUDIO is false)
-    if ENV.fetch("AUTO_TRANSCRIBE", "false") == "true"
+    if AppConfig.auto_transcribe?
       steps << :transcribe
 
       # If semantic search is enabled, automatically chunk and generate embeddings after transcription
-      if ENV.fetch("ENABLE_SEMANTIC_SEARCH", "false") == "true"
+      if AppConfig.semantic_search_enabled?
         steps << :chunk_transcript
         steps << :generate_embeddings
       end

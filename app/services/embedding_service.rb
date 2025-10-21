@@ -1,5 +1,5 @@
 class EmbeddingService
-  PYTHON_PATH = ENV.fetch("PYTHON_PATH", "venv/bin/python3")
+  PYTHON_PATH = AppConfig.python_path
   SCRIPT_PATH = Rails.root.join("scripts", "generate_embedding.py")
 
   def initialize

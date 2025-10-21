@@ -61,7 +61,7 @@ class EpisodeTranscriptionService
   end
 
   def download_enabled?
-    ENV.fetch("DOWNLOAD_AUDIO", "false") == "true"
+    AppConfig.download_audio?
   end
 
   def download_to_temp

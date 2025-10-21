@@ -5,8 +5,8 @@ require "json"
 # Takes search results from TranscriptSearchService and builds a prompt with context,
 # then calls Ollama API to generate a natural language response with citations.
 class LlmQueryService
-  OLLAMA_API_URL = ENV.fetch("OLLAMA_API_URL", "http://localhost:11434")
-  OLLAMA_MODEL = ENV.fetch("OLLAMA_MODEL", "qwen2.5:7b")
+  OLLAMA_API_URL = AppConfig.ollama_api_url
+  OLLAMA_MODEL = AppConfig.ollama_model
 
   # Initialize with a query and search results from TranscriptSearchService
   # @param query_text [String] The user's question

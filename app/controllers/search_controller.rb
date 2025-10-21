@@ -4,7 +4,7 @@ class SearchController < ApplicationController
     @context = params[:context] || "all"
     @current_podcast_id = params[:current_podcast_id].presence
     @current_episode_id = params[:current_episode_id].presence
-    @limit = params[:limit]&.to_i || ENV.fetch("SEARCH_CONTEXT_CHUNKS", 5).to_i
+    @limit = params[:limit]&.to_i || AppConfig.search_context_chunks
 
     # Determine actual search scope based on context
     case @context
