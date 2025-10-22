@@ -12,21 +12,21 @@ class EpisodeProcessingJob < ApplicationJob
   }.freeze
 
   # Default pipeline for full processing
-  DEFAULT_PIPELINE = [:download, :trim_ads, :transcribe].freeze
+  DEFAULT_PIPELINE = [ :download, :transcribe, :chunk_transcript, :generate_embeddings ].freeze
 
   def perform(episode_id, remaining_steps = DEFAULT_PIPELINE)
     @episode = Episode.find(episode_id)
-    
+
     # If no steps remaining, we're done
     return if remaining_steps.empty?
-    
+
     # Get the next step
     current_step = remaining_steps.first
     next_steps = remaining_steps[1..]
-    
+
     # Execute the current step
     success = execute_step(current_step)
-    
+
     # If successful and there are more steps, enqueue the next job
     if success && next_steps.any?
       EpisodeProcessingJob.perform_later(@episode.id, next_steps)
@@ -37,12 +37,12 @@ class EpisodeProcessingJob < ApplicationJob
 
   def execute_step(step)
     step_method = STEPS[step]
-    
+
     unless step_method
       Rails.logger.error("Unknown processing step: #{step} for episode #{@episode.id}")
       return false
     end
-    
+
     send(step_method)
   rescue => e
     Rails.logger.error("Failed to execute step #{step} for episode #{@episode.id}: #{e.message}")
@@ -51,10 +51,10 @@ class EpisodeProcessingJob < ApplicationJob
 
   def download_audio
     return true if @episode.download_completed?
-    
+
     Rails.logger.info("Downloading audio for episode #{@episode.id}")
     result = EpisodeAudioDownloadService.new(@episode).download
-    
+
     # Return true if download succeeded or was already completed
     result || @episode.download_completed?
   end
@@ -121,7 +121,7 @@ class EpisodeProcessingJob < ApplicationJob
       embedding = embedding_service.generate(chunk.text)
 
       if embedding
-        chunk.update!(embedding: embedding.to_json)
+        chunk.update!(embedding: embedding)
       else
         Rails.logger.error("Failed to generate embedding for chunk #{chunk.id}")
         return false

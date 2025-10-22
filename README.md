@@ -191,12 +191,14 @@ If you have existing episodes and want to enable search:
 
 ```bash
 # Chunk and generate embeddings for all transcribed episodes
-rails transcripts:chunk_all
-rails transcripts:generate_embeddings_all
+rails transcripts:chunk
+rails transcripts:generate_embeddings
 
 # Or process a single episode
 rails runner "EpisodeProcessingJob.perform_now(episode_id, [:chunk_transcript, :generate_embeddings])"
 ```
+
+See the [Rake Tasks](#rake-tasks) section below for more batch processing options.
 
 ### Ad Detection
 
@@ -225,6 +227,75 @@ rails ads:reset_episode[EPISODE_ID]
 - Stores confidence scores (0.0-1.0) for each chunk
 - Advertisements are excluded from search results by default
 - Ad chunks are styled differently in the transcript view (gray, italic)
+
+## Rake Tasks
+
+### Transcript Management
+
+**Chunk transcripts into searchable segments:**
+```bash
+rails transcripts:chunk
+```
+Processes all episodes with completed transcripts and splits them into searchable chunks. Creates one `TranscriptChunk` per Whisper segment with text and timestamps.
+
+**Generate embeddings for semantic search:**
+```bash
+rails transcripts:generate_embeddings
+```
+Generates 384-dimensional vector embeddings for all transcript chunks that don't have embeddings yet. Uses sentence-transformers (all-MiniLM-L6-v2 model) via Python. Required for semantic search functionality.
+
+### Advertisement Detection
+
+**Detect ads in all episodes:**
+```bash
+rails ads:detect_all
+```
+Analyzes all transcribed episodes to detect advertisements using your local LLM. Skips episodes that have already been analyzed. Shows progress and summary statistics.
+
+**Detect ads in a specific episode:**
+```bash
+rails ads:detect_episode[EPISODE_ID]
+```
+Analyzes a single episode and displays detected advertisement chunks with confidence scores and timestamps.
+
+Example: `rails ads:detect_episode[42]`
+
+**Review detected advertisements:**
+```bash
+rails ads:review
+```
+Shows a detailed review of all detected advertisements across all episodes, grouped by episode with timestamps and confidence scores.
+
+**Show detection statistics:**
+```bash
+rails ads:stats
+```
+Displays advertisement detection statistics including:
+- Overall ad detection rate
+- Analysis coverage (analyzed vs unanalyzed chunks)
+- Per-podcast statistics and ad rates
+
+**Reset ad detection for an episode:**
+```bash
+rails ads:reset_episode[EPISODE_ID]
+```
+Clears all advertisement detection data for a specific episode, allowing you to re-run detection with different settings or after adjusting the LLM model.
+
+Example: `rails ads:reset_episode[42]`
+
+### Model Annotations
+
+**Annotate models with schema info:**
+```bash
+rails annotate_models
+```
+Adds schema information as comments to model files and fixtures. Automatically runs after migrations.
+
+**Remove annotations:**
+```bash
+rails remove_annotation
+```
+Removes schema annotation comments from model and fixture files.
 
 ## Architecture
 

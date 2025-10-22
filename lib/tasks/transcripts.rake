@@ -47,7 +47,7 @@ namespace :transcripts do
       embedding = embedding_service.generate(chunk.text)
 
       if embedding
-        chunk.update!(embedding: embedding.to_json)
+        chunk.update!(embedding: embedding)
       else
         failed += 1
         puts "\n✗ Failed to generate embedding for chunk #{chunk.id}"

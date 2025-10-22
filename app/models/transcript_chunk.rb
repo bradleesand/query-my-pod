@@ -6,7 +6,7 @@ class TranscriptChunk < ApplicationRecord
   validates :episode_id, presence: true
 
   # Enum for chunk types
-  enum chunk_type: {
+  enum :chunk_type, {
     transcript: "transcript",
     title: "title",
     description: "description",
@@ -20,17 +20,6 @@ class TranscriptChunk < ApplicationRecord
   scope :content, -> { where.not(chunk_type: "advertisement") }
   scope :ad_analyzed, -> { where.not(ad_confidence: nil) }
   scope :not_ad_analyzed, -> { where(ad_confidence: nil) }
-
-  # Parse JSON embedding for neighbor queries
-  def embedding
-    return nil unless self[:embedding].present?
-    JSON.parse(self[:embedding])
-  end
-
-  # Convert array to JSON for storage
-  def embedding=(value)
-    self[:embedding] = value.is_a?(String) ? value : value.to_json
-  end
 
   # Mark this chunk as an advertisement with confidence score
   # @param confidence [Float] 0.0-1.0, where higher = more confident it's an ad

@@ -2,7 +2,12 @@ Rails.application.routes.draw do
   resources :episodes do
     member do
       post :download_audio
+      post :redownload_audio
       post :transcribe
+      post :reprocess_chunks
+      post :reprocess_embeddings
+      post :reprocess_ads
+      post :reset_processing
       get :audio, to: 'episodes#serve_audio'
     end
   end

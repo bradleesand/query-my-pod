@@ -1,5 +1,5 @@
 class EpisodesController < ApplicationController
-  before_action :set_episode, only: %i[ show edit update destroy download_audio transcribe serve_audio ]
+  before_action :set_episode, only: %i[ show edit update destroy download_audio redownload_audio transcribe serve_audio reprocess_chunks reprocess_embeddings reprocess_ads reset_processing ]
 
   # GET /episodes or /episodes.json
   def index
@@ -60,19 +60,42 @@ class EpisodesController < ApplicationController
   # POST /episodes/1/download_audio
   def download_audio
     # Just download, no other steps
-    EpisodeProcessingJob.perform_later(@episode.id, [:download])
-    
+    EpisodeProcessingJob.perform_later(@episode.id, [ :download ])
+
     respond_to do |format|
       format.html { redirect_to @episode, notice: "Audio download started." }
       format.json { render json: { status: "queued" }, status: :accepted }
     end
   end
 
+  # POST /episodes/1/redownload_audio
+  def redownload_audio
+    # Delete existing audio file
+    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path)
+      File.delete(@episode.local_audio_path)
+    end
+
+    # Reset download status and metadata
+    @episode.update!(
+      download_status: nil,
+      local_audio_path: nil,
+      local_audio_size: nil,
+      local_audio_checksum: nil
+    )
+
+    # Re-download
+    EpisodeProcessingJob.perform_later(@episode.id, [ :download ])
+
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Re-downloading audio..." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
   # POST /episodes/1/transcribe
   def transcribe
-    # Full pipeline: download, trim ads, transcribe
-    EpisodeProcessingJob.perform_later(@episode.id, [:download, :trim_ads, :transcribe])
-    
+    EpisodeProcessingJob.perform_later(@episode.id) # uses default pipeline
+
     respond_to do |format|
       format.html { redirect_to @episode, notice: "Transcription started." }
       format.json { render json: { status: "queued" }, status: :accepted }
@@ -87,38 +110,97 @@ class EpisodesController < ApplicationController
       file_size = File.size(file_path)
 
       # Check if this is a range request
-      if request.headers['Range']
+      if request.headers["Range"]
         # Parse the range header (format: "bytes=start-end")
-        range = request.headers['Range']
+        range = request.headers["Range"]
         match = range.match(/bytes=(\d+)-(\d*)/)
 
         if match
           range_start = match[1].to_i
           range_end = match[2].present? ? match[2].to_i : file_size - 1
-          range_end = [range_end, file_size - 1].min
+          range_end = [ range_end, file_size - 1 ].min
 
           content_length = range_end - range_start + 1
 
-          response.headers['Content-Range'] = "bytes #{range_start}-#{range_end}/#{file_size}"
-          response.headers['Accept-Ranges'] = 'bytes'
-          response.headers['Content-Length'] = content_length.to_s
+          response.headers["Content-Range"] = "bytes #{range_start}-#{range_end}/#{file_size}"
+          response.headers["Accept-Ranges"] = "bytes"
+          response.headers["Content-Length"] = content_length.to_s
 
           send_data File.binread(file_path, content_length, range_start),
                     type: @episode.enclosure_type,
-                    disposition: 'inline',
+                    disposition: "inline",
                     status: :partial_content
         else
           head :bad_request
         end
       else
         # Normal request without range
-        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers["Accept-Ranges"] = "bytes"
         send_file file_path,
                   type: @episode.enclosure_type,
-                  disposition: 'inline'
+                  disposition: "inline"
       end
     else
       redirect_to @episode.enclosure_url, allow_other_host: true
+    end
+  end
+
+  # POST /episodes/1/reprocess_chunks
+  def reprocess_chunks
+    # Delete existing chunks and re-chunk
+    @episode.transcript_chunks.destroy_all
+    EpisodeProcessingJob.perform_later(@episode.id, [ :chunk_transcript ])
+
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Re-chunking transcript..." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
+  # POST /episodes/1/reprocess_embeddings
+  def reprocess_embeddings
+    # Clear existing embeddings and regenerate
+    @episode.transcript_chunks.update_all(embedding: nil)
+    EpisodeProcessingJob.perform_later(@episode.id, [ :generate_embeddings ])
+
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Regenerating embeddings..." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
+  # POST /episodes/1/reprocess_ads
+  def reprocess_ads
+    # Reset ad detection
+    @episode.transcript_chunks.advertisement.update_all(chunk_type: "transcript")
+    @episode.transcript_chunks.update_all(ad_confidence: nil)
+    EpisodeProcessingJob.perform_later(@episode.id, [ :detect_ads_in_transcript ])
+
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Re-detecting advertisements..." }
+      format.json { render json: { status: "queued" }, status: :accepted }
+    end
+  end
+
+  # POST /episodes/1/reset_processing
+  def reset_processing
+    # Complete reset: delete chunks, clear statuses, delete local audio
+    @episode.transcript_chunks.destroy_all
+    @episode.update!(
+      transcription_status: nil,
+      download_status: nil,
+      generated_transcript: nil
+    )
+
+    # Delete local audio file if it exists
+    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path)
+      File.delete(@episode.local_audio_path)
+      @episode.update!(local_audio_path: nil, local_audio_size: nil, local_audio_checksum: nil)
+    end
+
+    respond_to do |format|
+      format.html { redirect_to @episode, notice: "Episode processing reset. Ready to start fresh." }
+      format.json { render json: { status: "reset" }, status: :ok }
     end
   end
 

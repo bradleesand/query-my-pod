@@ -1,41 +1,152 @@
 <div class="card mb-3" id="episode_<%= episode.id %>_status">
   <div class="card-body">
     <h6 class="card-subtitle mb-3 text-muted">Processing Status</h6>
-    
+
+    <!-- Audio Download -->
     <div class="mb-3">
-      <small class="text-muted d-block mb-1">Audio Download</small>
-      <% if episode.download_status.present? %>
-        <span class="badge bg-<%= download_status_color(episode.download_status) %>">
-          <%= episode.download_status.titleize %>
-        </span>
-      <% else %>
-        <span class="badge bg-secondary">Not Started</span>
-      <% end %>
-      
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-muted">Audio Download</small>
+        <% if episode.download_status.present? %>
+          <span class="badge bg-<%= download_status_color(episode.download_status) %>">
+            <%= episode.download_status.titleize %>
+          </span>
+        <% else %>
+          <span class="badge bg-secondary">Not Started</span>
+        <% end %>
+      </div>
+
       <% if !episode.download_completed? && !episode.download_downloading? %>
-        <%= button_to "Download Audio", download_audio_episode_path(episode), 
-            method: :post, 
-            class: "btn btn-sm btn-outline-primary mt-2 w-100",
+        <%= button_to "Download Audio", download_audio_episode_path(episode),
+            method: :post,
+            class: "btn btn-sm btn-outline-primary w-100",
             form: { data: { turbo_confirm: "Download audio file to local storage?" } } %>
+      <% elsif episode.download_completed? %>
+        <%= button_to "Re-download", redownload_audio_episode_path(episode),
+            method: :post,
+            class: "btn btn-sm btn-outline-secondary w-100",
+            form: { data: { turbo_confirm: "Delete and re-download audio file?" } } %>
       <% end %>
     </div>
 
-    <div>
-      <small class="text-muted d-block mb-1">Transcription</small>
-      <% if episode.transcription_status.present? %>
-        <span class="badge bg-<%= transcription_status_color(episode.transcription_status) %>">
-          <%= episode.transcription_status.titleize %>
-        </span>
-      <% else %>
-        <span class="badge bg-secondary">Not Started</span>
-      <% end %>
-      
+    <!-- Transcription -->
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-muted">Transcription</small>
+        <% if episode.transcription_status.present? %>
+          <span class="badge bg-<%= transcription_status_color(episode.transcription_status) %>">
+            <%= episode.transcription_status.titleize %>
+          </span>
+        <% else %>
+          <span class="badge bg-secondary">Not Started</span>
+        <% end %>
+      </div>
+
       <% if !episode.transcription_completed? && !episode.transcription_processing? %>
-        <%= button_to "Transcribe", transcribe_episode_path(episode), 
-            method: :post, 
-            class: "btn btn-sm btn-outline-primary mt-2 w-100",
+        <%= button_to "Transcribe", transcribe_episode_path(episode),
+            method: :post,
+            class: "btn btn-sm btn-outline-primary w-100",
             form: { data: { turbo_confirm: "Start transcription?" } } %>
       <% end %>
     </div>
+
+    <% if episode.transcription_completed? %>
+      <!-- Transcript Chunking -->
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <small class="text-muted">Transcript Chunking</small>
+          <% chunk_count = episode.transcript_chunks.count %>
+          <% if chunk_count > 0 %>
+            <span class="badge bg-success">
+              <%= chunk_count %> chunks
+            </span>
+          <% else %>
+            <span class="badge bg-secondary">Not chunked</span>
+          <% end %>
+        </div>
+        <% if chunk_count > 0 %>
+          <%= button_to "Re-chunk", reprocess_chunks_episode_path(episode),
+              method: :post,
+              class: "btn btn-sm btn-outline-secondary w-100",
+              form: { data: { turbo_confirm: "Delete and re-chunk transcript?" } } %>
+        <% end %>
+      </div>
+
+      <% if episode.transcript_chunks.any? %>
+        <!-- Vector Embeddings -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="text-muted">Vector Embeddings</small>
+            <% total_chunks = episode.transcript_chunks.count %>
+            <% embedded_chunks = episode.transcript_chunks.where.not(embedding: nil).count %>
+            <% if embedded_chunks == total_chunks %>
+              <span class="badge bg-success">Complete</span>
+            <% elsif embedded_chunks > 0 %>
+              <span class="badge bg-primary"><%= embedded_chunks %>/<%= total_chunks %></span>
+            <% else %>
+              <span class="badge bg-secondary">Not started</span>
+            <% end %>
+          </div>
+          <% if embedded_chunks < total_chunks %>
+            <div class="progress mb-2" style="height: 4px;">
+              <div class="progress-bar" role="progressbar"
+                   style="width: <%= (embedded_chunks.to_f / total_chunks * 100).round %>%"
+                   aria-valuenow="<%= embedded_chunks %>"
+                   aria-valuemin="0"
+                   aria-valuemax="<%= total_chunks %>"></div>
+            </div>
+          <% end %>
+          <%= button_to embedded_chunks > 0 ? "Regenerate" : "Generate",
+              reprocess_embeddings_episode_path(episode),
+              method: :post,
+              class: "btn btn-sm btn-outline-#{embedded_chunks > 0 ? 'secondary' : 'primary'} w-100",
+              form: { data: { turbo_confirm: embedded_chunks > 0 ? "Clear and regenerate all embeddings?" : "Generate embeddings for all chunks?" } } %>
+        </div>
+
+        <!-- Ad Detection -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="text-muted">Ad Detection</small>
+            <% analyzed_chunks = episode.transcript_chunks.transcript.ad_analyzed.count %>
+            <% transcript_chunks = episode.transcript_chunks.transcript.count %>
+            <% ad_chunks = episode.transcript_chunks.advertisement.count %>
+            <% if analyzed_chunks == transcript_chunks %>
+              <span class="badge bg-success">
+                <% if ad_chunks > 0 %>
+                  <%= ad_chunks %> ads found
+                <% else %>
+                  No ads detected
+                <% end %>
+              </span>
+            <% elsif analyzed_chunks > 0 %>
+              <span class="badge bg-primary"><%= analyzed_chunks %>/<%= transcript_chunks %></span>
+            <% else %>
+              <span class="badge bg-secondary">Not analyzed</span>
+            <% end %>
+          </div>
+          <% if analyzed_chunks < transcript_chunks %>
+            <div class="progress mb-2" style="height: 4px;">
+              <div class="progress-bar" role="progressbar"
+                   style="width: <%= (analyzed_chunks.to_f / transcript_chunks * 100).round %>%"
+                   aria-valuenow="<%= analyzed_chunks %>"
+                   aria-valuemin="0"
+                   aria-valuemax="<%= transcript_chunks %>"></div>
+            </div>
+          <% end %>
+          <%= button_to analyzed_chunks > 0 ? "Re-detect ads" : "Detect ads",
+              reprocess_ads_episode_path(episode),
+              method: :post,
+              class: "btn btn-sm btn-outline-#{analyzed_chunks > 0 ? 'secondary' : 'primary'} w-100",
+              form: { data: { turbo_confirm: analyzed_chunks > 0 ? "Clear and re-detect advertisements?" : "Detect advertisements?" } } %>
+        </div>
+      <% end %>
+
+      <!-- Reset All -->
+      <div class="border-top pt-3">
+        <%= button_to "Reset All Processing", reset_processing_episode_path(episode),
+            method: :post,
+            class: "btn btn-sm btn-outline-danger w-100",
+            form: { data: { turbo_confirm: "Delete all processing data (audio, transcript, chunks, embeddings)? This cannot be undone." } } %>
+      </div>
+    <% end %>
   </div>
 </div>
