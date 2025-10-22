@@ -100,6 +100,10 @@ class EpisodeProcessingJob < ApplicationJob
       "#{result[:false_positives_removed]} false positives removed, " \
       "#{result[:missed_chunks_added]} missed chunks added"
     )
+
+    # Broadcast status update via Turbo Stream
+    broadcast_status_update
+
     true
   rescue => e
     Rails.logger.error("Failed to detect ads for episode #{@episode.id}: #{e.message}")
@@ -136,5 +140,23 @@ class EpisodeProcessingJob < ApplicationJob
   rescue => e
     Rails.logger.error("Failed to generate embeddings for episode #{@episode.id}: #{e.message}")
     false
+  end
+
+  def broadcast_status_update
+    # Update the status card
+    Turbo::StreamsChannel.broadcast_replace_to(
+      "episode_#{@episode.id}_status",
+      target: "episode_#{@episode.id}_status",
+      partial: "episodes/status",
+      locals: { episode: @episode }
+    )
+
+    # Update the transcript (to show newly detected ads)
+    Turbo::StreamsChannel.broadcast_replace_to(
+      "episode_#{@episode.id}_transcript",
+      target: "episode_#{@episode.id}_transcript",
+      partial: "episodes/transcript",
+      locals: { episode: @episode }
+    )
   end
 end

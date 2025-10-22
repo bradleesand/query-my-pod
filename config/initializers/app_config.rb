@@ -33,7 +33,7 @@ module AppConfig
     # =============================================================================
 
     def ad_detection_enabled?
-      ENV.fetch("ENABLE_AD_DETECTION", "false") == "true"
+      ENV.fetch("ENABLE_AD_DETECTION", "true") == "true"
     end
 
     def ad_detection_threshold

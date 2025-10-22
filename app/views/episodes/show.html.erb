@@ -67,9 +67,9 @@
     </div>
   </div>
   
-  <div class="col-md-9">
+  <div class="col-md-9" data-controller="transcript-highlight">
     <h1 class="mb-3"><%= @episode.title %></h1>
-    
+
     <p class="text-muted">
       <%= link_to @episode.podcast.title, @episode.podcast, class: "text-decoration-none" %>
     </p>
@@ -90,7 +90,22 @@
     <% if @episode.enclosure_url.present? %>
       <div class="card mb-4">
         <div class="card-body">
-          <h6 class="card-subtitle mb-3 text-muted">Audio Player</h6>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="card-subtitle mb-0 text-muted">Audio Player</h6>
+            <% if @episode.transcript_chunks.advertisement.any? %>
+              <div class="form-check form-switch">
+                <input class="form-check-input"
+                       type="checkbox"
+                       role="switch"
+                       id="skipAdsToggle"
+                       data-transcript-highlight-target="skipAdsToggle"
+                       data-action="change->transcript-highlight#toggleSkipAds">
+                <label class="form-check-label small" for="skipAdsToggle">
+                  Skip ads
+                </label>
+              </div>
+            <% end %>
+          </div>
           <audio controls class="w-100" preload="metadata">
             <source src="<%= @episode.audio_url %>" type="<%= @episode.enclosure_type || 'audio/mpeg' %>">
             Your browser does not support the audio element.
@@ -99,28 +114,9 @@
       </div>
     <% end %>
 
-    <% if @episode.transcription_completed? && @episode.transcript_chunks.any? %>
-      <div class="card mb-4">
-        <div class="card-body">
-          <h6 class="card-subtitle mb-2 text-muted">Generated Transcript</h6>
-          <div class="transcript-text"
-               id="transcript-container"
-               data-controller="transcript-highlight"
-               style="max-height: 400px; overflow-y: auto;">
-            <% @episode.transcript_chunks.order(:start_time).each do |chunk| %>
-              <span class="transcript-chunk <%= 'transcript-chunk-ad' if chunk.advertisement? %>"
-                    id="chunk-<%= chunk.id %>"
-                    data-chunk-id="<%= chunk.id %>"
-                    data-start-time="<%= chunk.start_time %>"
-                    data-end-time="<%= chunk.end_time %>"
-                    <% if chunk.advertisement? %>
-                      title="Advertisement (confidence: <%= (chunk.ad_confidence * 100).round(1) %>%)"
-                    <% end %>><%= chunk.text %></span>
-            <% end %>
-          </div>
-        </div>
-      </div>
-    <% end %>
+    <%= turbo_stream_from "episode_#{@episode.id}_transcript" %>
+
+    <%= render "episodes/transcript", episode: @episode %>
   </div>
 </div>
 

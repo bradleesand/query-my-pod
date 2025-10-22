@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       post :reprocess_embeddings
       post :reprocess_ads
       post :reset_processing
+      post :bulk_update_chunks
       get :audio, to: 'episodes#serve_audio'
     end
   end

@@ -1,5 +1,5 @@
 class EpisodesController < ApplicationController
-  before_action :set_episode, only: %i[ show edit update destroy download_audio redownload_audio transcribe serve_audio reprocess_chunks reprocess_embeddings reprocess_ads reset_processing ]
+  before_action :set_episode, only: %i[ show edit update destroy download_audio redownload_audio transcribe serve_audio reprocess_chunks reprocess_embeddings reprocess_ads reset_processing bulk_update_chunks ]
 
   # GET /episodes or /episodes.json
   def index
@@ -202,6 +202,31 @@ class EpisodesController < ApplicationController
       format.html { redirect_to @episode, notice: "Episode processing reset. Ready to start fresh." }
       format.json { render json: { status: "reset" }, status: :ok }
     end
+  end
+
+  # POST /episodes/1/bulk_update_chunks
+  def bulk_update_chunks
+    chunk_ids = params[:chunk_ids]
+    chunk_type = params[:chunk_type]
+
+    unless chunk_ids.is_a?(Array) && %w[transcript advertisement].include?(chunk_type)
+      return render json: { error: "Invalid parameters" }, status: :bad_request
+    end
+
+    # Only update chunks that belong to this episode
+    chunks = @episode.transcript_chunks.where(id: chunk_ids)
+
+    if chunks.empty?
+      return render json: { error: "No chunks found" }, status: :not_found
+    end
+
+    # Update chunks with manual classification confidence
+    confidence = chunk_type == "advertisement" ? 1.0 : 0.0
+    chunks.update_all(chunk_type: chunk_type, ad_confidence: confidence)
+
+    Rails.logger.info("Manually updated #{chunks.count} chunks to #{chunk_type} for episode #{@episode.id}")
+
+    render json: { updated: chunks.count }, status: :ok
   end
 
   private

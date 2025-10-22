@@ -1,0 +1,72 @@
+<% if episode.transcription_completed? && episode.transcript_chunks.any? %>
+  <div class="card mb-4" id="episode_<%= episode.id %>_transcript">
+    <div class="card-body"
+         data-controller="chunk-editor"
+         data-chunk-editor-episode-id-value="<%= episode.id %>">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="card-subtitle mb-0 text-muted">Generated Transcript</h6>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-chunk-editor-target="editToggle"
+                data-action="click->chunk-editor#toggleEditMode">
+          Edit Mode
+        </button>
+      </div>
+
+      <!-- Edit mode action bar -->
+      <div class="d-none mb-3 p-2 bg-light rounded"
+           data-chunk-editor-target="actionButtons">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <small class="text-muted me-2">
+            <span data-chunk-editor-target="startChunk">Click to select start</span>
+            <span data-chunk-editor-target="endChunk"></span>
+          </small>
+          <button type="button"
+                  class="btn btn-sm btn-primary"
+                  data-action="click->chunk-editor#markAsAd">
+            Mark as Ad
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-secondary"
+                  data-action="click->chunk-editor#markAsContent">
+            Mark as Content
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  data-action="click->chunk-editor#clearSelection">
+            Clear
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button"
+                  class="btn btn-sm btn-outline-info"
+                  data-action="click->chunk-editor#jumpToPreviousAd">
+            <i class="bi bi-skip-backward"></i> Previous Ad
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline-info"
+                  data-action="click->chunk-editor#jumpToNextAd">
+            <i class="bi bi-skip-forward"></i> Next Ad
+          </button>
+        </div>
+      </div>
+
+      <div class="transcript-text"
+           id="transcript-container"
+           style="max-height: 400px; overflow-y: auto;">
+        <% episode.transcript_chunks.order(:start_time).each do |chunk| %>
+          <span class="transcript-chunk <%= 'transcript-chunk-ad' if chunk.advertisement? %>"
+                id="chunk-<%= chunk.id %>"
+                data-chunk-id="<%= chunk.id %>"
+                data-chunk-editor-target="chunk"
+                data-action="click->chunk-editor#selectChunk"
+                data-start-time="<%= chunk.start_time %>"
+                data-end-time="<%= chunk.end_time %>"
+                <% if chunk.advertisement? %>
+                  title="Advertisement (confidence: <%= (chunk.ad_confidence * 100).round(1) %>%)"
+                <% end %>><%= chunk.text %></span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>
