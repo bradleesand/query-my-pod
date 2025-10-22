@@ -89,14 +89,17 @@ class EpisodeProcessingJob < ApplicationJob
     # Skip if no chunks exist yet
     return false if @episode.transcript_chunks.empty?
 
-    # Skip if already processed (all transcript chunks have been analyzed)
-    unanalyzed_chunks = @episode.transcript_chunks.transcript.not_ad_analyzed
-    return true if unanalyzed_chunks.empty?
+    Rails.logger.info("Detecting ads using vector-based repeated segment analysis with sliding window for episode #{@episode.id}")
+    result = RepeatedSegmentAdDetectionService.new.analyze_episode(@episode, use_vectors: true)
 
-    Rails.logger.info("Detecting ads in transcript for episode #{@episode.id} (#{unanalyzed_chunks.count} unanalyzed chunks)")
-    result = AdDetectionService.new.process_episode(@episode)
-
-    Rails.logger.info("Ad detection complete for episode #{@episode.id}: #{result[:ads_detected]} ads found in #{result[:total_chunks]} chunks")
+    Rails.logger.info(
+      "Ad detection complete for episode #{@episode.id}: " \
+      "#{result[:total_ads_marked]} ads marked initially " \
+      "(#{result[:within_episode_matches]} within-episode, #{result[:cross_episode_matches]} cross-episode), " \
+      "#{result[:clusters_found]} windows found, " \
+      "#{result[:false_positives_removed]} false positives removed, " \
+      "#{result[:missed_chunks_added]} missed chunks added"
+    )
     true
   rescue => e
     Rails.logger.error("Failed to detect ads for episode #{@episode.id}: #{e.message}")

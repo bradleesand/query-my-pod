@@ -75,3 +75,6 @@ gem "annotate", "~> 2.6", group: :development
 # Vector similarity search
 gem "neighbor"
 gem "sqlite-vec", "~> 0.1", platforms: [:ruby]
+
+# Text similarity for ad detection
+gem "text"
