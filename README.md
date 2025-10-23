@@ -1,4 +1,6 @@
-# Podcast Search
+# Query My Pod
+
+AI-Powered Podcast Search
 
 A self-hosted web application that makes your favorite podcasts searchable and queryable through AI. Track podcasts via RSS, automatically transcribe episodes, and use semantic search with local LLMs to discover content across your entire podcast library.
 
@@ -94,8 +96,8 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 
 ```bash
 # Clone the repository
-git clone https://gitlab.com/bradleesand/podcast-search.git
-cd podcast-search
+git clone git@github.com:bradleesand/query-my-pod.git
+cd query-my-pod
 
 # Install Ruby dependencies
 bundle install
