@@ -1,4 +1,12 @@
 class TranscriptSearchService
+  # Weights for different chunk types (higher = more important)
+  CHUNK_TYPE_WEIGHTS = {
+    "title" => 3.0,        # Title matches are most important
+    "description" => 2.0,  # Description matches are very important
+    "transcript" => 1.0,   # Regular transcript matches are baseline
+    "advertisement" => 0.5 # Ads are less important (if included)
+  }.freeze
+
   def initialize(query_text, options = {})
     @query_text = query_text
     @podcast_id = options[:podcast_id]
@@ -36,16 +44,25 @@ class TranscriptSearchService
       chunks = chunks.joins(:episode).merge(Episode.unlistened)
     when "listened"
       chunks = chunks.joins(:episode).merge(Episode.listened)
-    # "all" - no filter
+      # "all" - no filter
     end
 
-    # Perform vector similarity search
-    results = chunks.nearest_neighbors(:embedding, query_embedding, distance: "cosine")
-                   .limit(@limit)
-                   .includes(episode: :podcast)
+    # Perform vector similarity search - get more results initially to account for re-ranking
+    raw_results = chunks.nearest_neighbors(:embedding, query_embedding, distance: "cosine")
+                       .limit(@limit * 3) # Get 3x results for re-ranking
+                       .includes(episode: :podcast)
 
-    # Return results with metadata
-    results.map do |chunk|
+    # Apply weights based on chunk type and re-rank
+    weighted_results = raw_results.map do |chunk|
+      weight = CHUNK_TYPE_WEIGHTS[chunk.chunk_type] || 1.0
+
+      # Convert distance to similarity (1 - distance for cosine)
+      # Lower distance = higher similarity
+      similarity = 1.0 - chunk.neighbor_distance
+
+      # Apply weight to boost similarity
+      weighted_score = similarity * weight
+
       {
         chunk: chunk,
         episode: chunk.episode,
@@ -53,8 +70,14 @@ class TranscriptSearchService
         text: chunk.text,
         start_time: chunk.start_time,
         end_time: chunk.end_time,
-        distance: chunk.neighbor_distance
+        distance: chunk.neighbor_distance,
+        similarity: similarity,
+        weight: weight,
+        weighted_score: weighted_score
       }
     end
+
+    # Sort by weighted score (highest first) and limit to requested amount
+    weighted_results.sort_by { |r| -r[:weighted_score] }.take(@limit)
   end
 end

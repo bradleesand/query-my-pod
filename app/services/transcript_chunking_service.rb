@@ -21,6 +21,35 @@ class TranscriptChunkingService
     end
 
     begin
+      chunks_created = 0
+
+      # Create title chunk
+      if @episode.title.present?
+        TranscriptChunk.create!(
+          episode: @episode,
+          text: @episode.title,
+          start_time: nil,
+          end_time: nil,
+          chunk_index: -2, # Negative index to indicate metadata chunks
+          chunk_type: "title"
+        )
+        chunks_created += 1
+      end
+
+      # Create description chunk
+      if @episode.description.present?
+        TranscriptChunk.create!(
+          episode: @episode,
+          text: @episode.description,
+          start_time: nil,
+          end_time: nil,
+          chunk_index: -1, # Negative index to indicate metadata chunks
+          chunk_type: "description"
+        )
+        chunks_created += 1
+      end
+
+      # Create transcript chunks from segments
       transcript_data = @episode.transcript_content
       segments = transcript_data["segments"]
 
@@ -29,7 +58,6 @@ class TranscriptChunkingService
         return false
       end
 
-      chunks_created = 0
       segments.each_with_index do |segment, index|
         TranscriptChunk.create!(
           episode: @episode,

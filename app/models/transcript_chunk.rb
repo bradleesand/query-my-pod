@@ -21,6 +21,7 @@ class TranscriptChunk < ApplicationRecord
   scope :ad_analyzed, -> { where.not(ad_confidence: nil) }
   scope :not_ad_analyzed, -> { where(ad_confidence: nil) }
   scope :transcript_or_ad, -> { where(chunk_type: [ "transcript", "advertisement" ]) }
+  scope :metadata, -> { where(chunk_type: [ "title", "description" ]) }
 
   # Mark this chunk as an advertisement with confidence score
   # @param confidence [Float] 0.0-1.0, where higher = more confident it's an ad
