@@ -27,8 +27,11 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 - **Semantic Search**: Vector similarity search using SQLite with neighbor gem
 - **RAG (Retrieval Augmented Generation)**: LLM generates answers with citations
 - **Local LLM Integration**: Works with Ollama (qwen2.5:7b, llama3.2, etc.)
+- **LLM Tool Calling**: AI can request additional context when needed (up to 3 iterations)
+- **Weighted Search Results**: Title matches boosted 3x, descriptions 2x for better relevance
 - **Context-Aware Search**: Search within episode, podcast, or across all podcasts
 - **Inline Search Results**: Turbo-powered search with loading indicators
+- **CLI Query Tool**: Command-line interface for querying transcripts
 
 #### Interactive Transcript Player
 - **Live Transcript Highlighting**: Synchronized with audio playback
@@ -46,7 +49,6 @@ A self-hosted web application that makes your favorite podcasts searchable and q
 
 ### 📋 Potential Future Enhancements
 
-- **Metadata-Weighted Search**: Use episode title/description chunks to boost relevance scores for matching episodes in semantic search
 - **Advanced Search Features**: Filter by date, podcast, keywords
 - **Search History**: Track and revisit previous searches
 - **Saved Searches**: Bookmark frequently used queries
@@ -228,6 +230,54 @@ rails ads:reset_episode[EPISODE_ID]
 - Advertisements are excluded from search results by default
 - Ad chunks are styled differently in the transcript view (gray, italic)
 
+### CLI Query Tool
+
+Query your podcast transcripts directly from the command line:
+
+```bash
+# Basic query across all podcasts
+rails runner scripts/query_llm.rb "What are some productivity tips?"
+
+# Query with verbose output (shows all sources and similarity scores)
+rails runner scripts/query_llm.rb "What productivity apps were mentioned?" --verbose
+
+# Query specific podcast
+rails runner scripts/query_llm.rb "What did they say about focus?" --context podcast --podcast 1
+
+# Query specific episode
+rails runner scripts/query_llm.rb "What was the main topic?" --context episode --episode 123
+
+# Filter by listened status
+rails runner scripts/query_llm.rb "What are the main themes?" --filter unlistened
+
+# Adjust context chunks (more context = better answers, slower response)
+rails runner scripts/query_llm.rb "Tell me about the guest" --limit 15
+
+# Combined options
+rails runner scripts/query_llm.rb "What tools were recommended?" \
+  --context podcast \
+  --podcast 1 \
+  --filter listened \
+  --limit 12 \
+  --verbose
+```
+
+**Available Options:**
+- `-c, --context CONTEXT` - Search context: `all`, `podcast`, `episode` (default: all)
+- `-p, --podcast ID` - Podcast ID (required for podcast/episode context)
+- `-e, --episode ID` - Episode ID (required for episode context)
+- `-l, --limit N` - Number of initial context chunks (default: 10)
+- `-f, --filter FILTER` - Listened filter: `all`, `listened`, `unlistened`
+- `-v, --verbose` - Show detailed sources with similarity scores
+- `-h, --help` - Show help message
+
+**How it works:**
+- Performs semantic vector search across transcript chunks
+- LLM can automatically request additional context via tool calling (up to 3 iterations)
+- Returns AI-generated answer with numbered citations
+- Verbose mode shows all sources with episode info, timestamps, and similarity scores
+- Respects same filtering and scoping as web search
+
 ## Rake Tasks
 
 ### Transcript Management
@@ -335,17 +385,24 @@ EpisodeProcessingJob.perform_later(episode_id, [:transcribe])
 
 **Data Flow:**
 1. **Transcription**: Whisper generates timestamped transcripts
-2. **Chunking**: TranscriptChunkingService splits by Whisper segments
+2. **Chunking**: TranscriptChunkingService splits by Whisper segments and creates title/description chunks
 3. **Embedding**: Python sentence-transformers creates 384-dim vectors
 4. **Storage**: SQLite stores chunks with vector embeddings
-5. **Search**: neighbor gem performs cosine similarity search
+5. **Search**: neighbor gem performs cosine similarity search with weighted ranking
 6. **LLM**: Ollama generates cited responses using top chunks
+7. **Tool Calling** (optional): LLM can request additional context via search_transcript tool (up to 3 iterations)
+
+**Key Features:**
+- **Weighted Ranking**: Title chunks boosted 3x, description chunks 2x, transcript chunks 1x
+- **Tool Calling**: LLM can autonomously gather more context when initial results are insufficient
+- **Iterative Refinement**: Up to 3 tool call iterations prevent infinite loops
+- **Metadata Search**: Episode titles and descriptions included as searchable chunks
 
 **Key Components:**
-- `TranscriptChunk` model: Stores text chunks with embeddings and timestamps
-- `TranscriptSearchService`: Performs vector similarity search
+- `TranscriptChunk` model: Stores text chunks with embeddings, timestamps, and chunk type (title/description/transcript/advertisement)
+- `TranscriptSearchService`: Performs vector similarity search with weighted re-ranking
 - `EmbeddingService`: Wraps Python script for embedding generation
-- `LlmQueryService`: Queries Ollama with context and returns cited responses
+- `LlmQueryService`: Queries Ollama with context, supports tool calling for iterative search
 - `SearchController`: Handles search UI and Turbo Frame rendering
 
 ### Service Architecture

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A self-hosted Rails application that makes podcasts searchable through AI. Tracks podcasts via RSS, automatically transcribes episodes using Whisper, and provides a web interface for browsing and listening. LLM-powered semantic search is planned but not yet implemented.
+A self-hosted Rails application that makes podcasts searchable through AI. Tracks podcasts via RSS, automatically transcribes episodes using Whisper, and provides semantic search with local LLMs (Ollama). Features include RAG-powered search with tool calling, weighted search results, ad detection, and interactive transcript playback.
 
 ## Development Commands
 
@@ -86,9 +86,11 @@ rails console -e production
 
 **TranscriptChunk** (app/models/transcript_chunk.rb)
 - Stores chunked transcript segments for semantic search
-- One chunk per Whisper segment
-- Contains: text, start_time, end_time, chunk_index, embedding (for Phase 2)
+- Chunk types: title, description, transcript, advertisement
+- One chunk per Whisper segment (for transcript type)
+- Contains: text, start_time, end_time, chunk_index, embedding, chunk_type
 - Belongs to Episode, has one Podcast through Episode
+- Title/description chunks have nil timestamps and negative chunk_index
 
 ### Processing Pipeline
 
@@ -143,7 +145,8 @@ EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 
 **TranscriptChunkingService** (app/services/transcript_chunking_service.rb)
 - Splits Whisper transcripts into searchable chunks
-- Creates one TranscriptChunk per Whisper segment
+- Creates title and description chunks (chunk_type: title/description)
+- Creates one TranscriptChunk per Whisper segment (chunk_type: transcript)
 - Stores text and timestamps for each chunk
 
 **EmbeddingService** (app/services/embedding_service.rb)
@@ -151,6 +154,21 @@ EpisodeProcessingJob.perform_later(episode.id, [:transcribe])
 - Uses `all-MiniLM-L6-v2` model (384 dimensions)
 - Generates vector embeddings for transcript chunks
 - Stores embeddings as JSON arrays in database
+
+**TranscriptSearchService** (app/services/transcript_search_service.rb)
+- Performs semantic vector similarity search across transcript chunks
+- Uses neighbor gem with cosine distance
+- Weighted ranking: title chunks 3x, description 2x, transcript 1x
+- Filters by podcast, episode, listened status
+- Excludes advertisements by default
+- Returns top N results (configurable, default: 10)
+
+**LlmQueryService** (app/services/llm_query_service.rb)
+- Queries Ollama (local LLM) with search results as context
+- Generates cited responses with numbered sources
+- Supports tool calling for iterative context gathering
+- LLM can request more info via search_transcript tool (up to 3 iterations)
+- Returns AI-generated answer with all sources used
 
 ### Background Jobs (Solid Queue)
 
@@ -267,10 +285,44 @@ pip install sentence-transformers torch
 rails transcripts:generate_embeddings
 ```
 
+### Querying Transcripts via CLI
+
+Use the CLI tool to query transcripts from the command line:
+
+```bash
+# Basic query across all podcasts
+rails runner scripts/query_llm.rb "What are some productivity tips?"
+
+# Query with verbose output (shows all sources)
+rails runner scripts/query_llm.rb "What tools were recommended?" --verbose
+
+# Query specific podcast
+rails runner scripts/query_llm.rb "What did they say about focus?" --context podcast --podcast 1
+
+# Query specific episode
+rails runner scripts/query_llm.rb "What was the main topic?" --context episode --episode 123
+
+# Filter by listened status
+rails runner scripts/query_llm.rb "What are the main themes?" --filter unlistened
+
+# Adjust context chunks
+rails runner scripts/query_llm.rb "Tell me about the guest" --limit 15
+```
+
+**Available Options:**
+- `-c, --context CONTEXT` - Search context: all, podcast, episode
+- `-p, --podcast ID` - Podcast ID (required for podcast/episode context)
+- `-e, --episode ID` - Episode ID (required for episode context)
+- `-l, --limit N` - Number of initial context chunks (default: 10)
+- `-f, --filter FILTER` - Listened filter: all, listened, unlistened
+- `-v, --verbose` - Show detailed sources with similarity scores
+- `-h, --help` - Show help message
+
+The LLM will automatically use tool calling to request additional context if needed (up to 3 iterations).
+
 ## Future Planned Features
 
-- Vector embeddings for semantic search (not yet implemented)
-- LLM chat interface for querying transcripts
 - Speaker diarization with pyannote-audio
-- Ad detection and automatic trimming
-- Episode cross-linking
+- Enhanced search UI (filters, history, saved searches)
+- Episode cross-linking and recommendations
+- Audio-based ad trimming (fingerprinting approach)

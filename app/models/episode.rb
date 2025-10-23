@@ -133,6 +133,11 @@ class Episode < ApplicationRecord
       if AppConfig.semantic_search_enabled?
         steps << :chunk_transcript
         steps << :generate_embeddings
+
+        # If ad detection is enabled, add that step after chunking
+        if AppConfig.ad_detection_enabled?
+          steps << :detect_ads_in_transcript
+        end
       end
     end
 

@@ -45,8 +45,13 @@ class SearchController < ApplicationController
       return
     end
 
-    # Generate LLM response
-    llm_service = LlmQueryService.new(@query, @search_results)
+    # Generate LLM response with context options for tool calling
+    context_options = {
+      podcast_id: @podcast_id,
+      episode_id: @episode_id,
+      listened_filter: listened_filter
+    }
+    llm_service = LlmQueryService.new(@query, @search_results, context_options)
     @llm_response = llm_service.generate_response
 
     if @llm_response[:error]

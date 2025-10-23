@@ -21,11 +21,11 @@ module AppConfig
     # =============================================================================
 
     def semantic_search_enabled?
-      ENV.fetch("ENABLE_SEMANTIC_SEARCH", "false") == "true"
+      ENV.fetch("ENABLE_SEMANTIC_SEARCH", "true") == "true"
     end
 
     def search_context_chunks
-      ENV.fetch("SEARCH_CONTEXT_CHUNKS", "5").to_i
+      ENV.fetch("SEARCH_CONTEXT_CHUNKS", "10").to_i
     end
 
     # =============================================================================
@@ -57,7 +57,7 @@ module AppConfig
     # =============================================================================
 
     def download_audio?
-      ENV.fetch("DOWNLOAD_AUDIO", "false") == "true"
+      ENV.fetch("DOWNLOAD_AUDIO", "true") == "true"
     end
 
     def auto_download_audio?
