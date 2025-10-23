@@ -9,7 +9,16 @@ class PodcastsController < ApplicationController
 
   # GET /podcasts/1 or /podcasts/1.json
   def show
-    sort_order = params[:sort] == 'asc' ? :asc : :desc
+    # Determine sort order: use param if provided, otherwise use saved preference
+    if params[:sort].present?
+      sort_order = params[:sort] == 'asc' ? :asc : :desc
+      # Save the preference for this podcast
+      @podcast.update_column(:sort_order, sort_order.to_s)
+    else
+      # Use saved preference (defaults to 'desc' from database)
+      sort_order = @podcast.sort_order == 'asc' ? :asc : :desc
+    end
+
     @pagy, @episodes = pagy(@podcast.episodes.order(pub_date: sort_order), limit: 25)
     @sort_order = sort_order
   end

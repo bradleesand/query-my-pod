@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_23_012025) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_23_014505) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -67,6 +67,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_23_012025) do
     t.text "copywrite"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "sort_order", default: "desc"
     t.index ["guid"], name: "index_podcasts_on_guid", unique: true
   end
 
