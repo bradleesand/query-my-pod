@@ -70,9 +70,39 @@
   <div class="col-md-9" data-controller="transcript-highlight">
     <h1 class="mb-3"><%= @episode.title %></h1>
 
-    <p class="text-muted">
-      <%= link_to @episode.podcast.title, @episode.podcast, class: "text-decoration-none" %>
-    </p>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <p class="text-muted mb-0">
+          <%= link_to @episode.podcast.title, @episode.podcast, class: "text-decoration-none" %>
+        </p>
+        <%= button_to toggle_listened_episode_path(@episode), method: :post, class: "btn btn-sm #{@episode.listened? ? 'btn-success' : 'btn-outline-secondary'}", title: @episode.listened? ? "Mark as unlistened" : "Mark as listened" do %>
+          <i class="bi bi-<%= @episode.listened? ? 'check-circle-fill' : 'circle' %>"></i>
+          <%= @episode.listened? ? "Listened" : "Not listened" %>
+        <% end %>
+      </div>
+
+      <div class="d-flex gap-2">
+        <% if @episode.previous_episode %>
+          <%= link_to @episode.previous_episode, class: "btn btn-sm btn-outline-secondary" do %>
+            <i class="bi bi-chevron-left"></i> Previous
+          <% end %>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>
+            <i class="bi bi-chevron-left"></i> Previous
+          </button>
+        <% end %>
+
+        <% if @episode.next_episode %>
+          <%= link_to @episode.next_episode, class: "btn btn-sm btn-outline-secondary" do %>
+            Next <i class="bi bi-chevron-right"></i>
+          <% end %>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>
+            Next <i class="bi bi-chevron-right"></i>
+          </button>
+        <% end %>
+      </div>
+    </div>
 
     <%= render "search/search_form", episode_id: @episode.id, placeholder: "Search in this episode..." %>
 
@@ -121,5 +151,7 @@
 </div>
 
 <div class="mt-4">
-  <%= link_to "Back to #{@episode.podcast.title}", @episode.podcast, class: "btn btn-secondary" %>
+  <%= link_to @episode.podcast, class: "btn btn-secondary" do %>
+    <i class="bi bi-arrow-left"></i> Back to <%= @episode.podcast.title %>
+  <% end %>
 </div>

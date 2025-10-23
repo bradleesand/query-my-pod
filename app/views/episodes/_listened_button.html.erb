@@ -1,0 +1,9 @@
+<%= turbo_frame_tag "episode_#{episode.id}_listened_button" do %>
+  <%= link_to toggle_listened_episode_path(episode),
+      method: :post,
+      data: { turbo_method: :post },
+      class: "btn btn-sm #{episode.listened? ? 'btn-success' : 'btn-outline-secondary'} ms-2",
+      title: episode.listened? ? "Mark as unlistened" : "Mark as listened" do %>
+    <i class="bi bi-<%= episode.listened? ? 'check-circle-fill' : 'circle' %>"></i>
+  <% end %>
+<% end %>

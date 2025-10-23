@@ -1,5 +1,5 @@
 class EpisodesController < ApplicationController
-  before_action :set_episode, only: %i[ show edit update destroy download_audio redownload_audio transcribe serve_audio reprocess_chunks reprocess_embeddings reprocess_ads reset_processing bulk_update_chunks ]
+  before_action :set_episode, only: %i[ show edit update destroy download_audio redownload_audio transcribe serve_audio reprocess_chunks reprocess_embeddings reprocess_ads reset_processing bulk_update_chunks toggle_listened ]
 
   # GET /episodes or /episodes.json
   def index
@@ -227,6 +227,29 @@ class EpisodesController < ApplicationController
     Rails.logger.info("Manually updated #{chunks.count} chunks to #{chunk_type} for episode #{@episode.id}")
 
     render json: { updated: chunks.count }, status: :ok
+  end
+
+  # POST /episodes/1/toggle_listened
+  def toggle_listened
+    if @episode.listened?
+      @episode.mark_as_unlistened!
+      message = "Marked as unlistened"
+    else
+      @episode.mark_as_listened!
+      message = "Marked as listened"
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace(
+          "episode_#{@episode.id}_listened_button",
+          partial: "episodes/listened_button",
+          locals: { episode: @episode }
+        )
+      end
+      format.html { redirect_to @episode, notice: message }
+      format.json { render json: { listened: @episode.listened?, listened_at: @episode.listened_at }, status: :ok }
+    end
   end
 
   private

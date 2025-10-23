@@ -29,9 +29,11 @@
 #  local_audio_size     :integer
 #  local_audio_checksum :string
 #  download_status      :string
+#  listened_at          :datetime
 #
 # Indexes
 #
+#  index_episodes_on_listened_at          (listened_at)
 #  index_episodes_on_podcast_id           (podcast_id)
 #  index_episodes_on_podcast_id_and_guid  (podcast_id,guid)
 #

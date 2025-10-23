@@ -91,12 +91,15 @@
       <% if @episodes.any? %>
         <ul class="list-group mb-3">
           <% @episodes.each do |episode| %>
-            <li class="list-group-item">
-              <%= link_to episode.title, episode, class: "text-decoration-none" %>
-              <% if episode.pub_date %>
-                <br>
-                <small class="text-muted"><%= episode.pub_date.strftime("%B %d, %Y") %></small>
-              <% end %>
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <%= link_to episode.title, episode, class: "text-decoration-none" %>
+                <% if episode.pub_date %>
+                  <br>
+                  <small class="text-muted"><%= episode.pub_date.strftime("%B %d, %Y") %></small>
+                <% end %>
+              </div>
+              <%= render "episodes/listened_button", episode: episode %>
             </li>
           <% end %>
         </ul>

@@ -29,10 +29,12 @@ class SearchController < ApplicationController
     end
 
     # Perform vector search
+    listened_filter = params[:listened_filter] || "all"
     search_service = TranscriptSearchService.new(@query,
       podcast_id: @podcast_id,
       episode_id: @episode_id,
-      limit: @limit)
+      limit: @limit,
+      listened_filter: listened_filter)
     @search_results = search_service.search
 
     if @search_results.empty?

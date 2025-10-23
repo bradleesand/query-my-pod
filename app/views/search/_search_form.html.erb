@@ -43,6 +43,18 @@
         <%= f.submit "Search", class: "btn btn-primary", data: { turbo_submits_with: "Searching..." } %>
       </div>
 
+      <div class="mb-2">
+        <%= f.label :listened_filter, "Episode filter:", class: "form-label small" %>
+        <%= f.select :listened_filter,
+            [
+              ["All episodes", "all"],
+              ["Only unlistened", "unlistened"],
+              ["Only listened", "listened"]
+            ],
+            { selected: "all" },
+            { class: "form-select form-select-sm" } %>
+      </div>
+
       <div class="form-text">
         AI-powered semantic search with citations
       </div>

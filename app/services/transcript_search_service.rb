@@ -5,6 +5,7 @@ class TranscriptSearchService
     @episode_id = options[:episode_id]
     @limit = options[:limit] || 5
     @include_ads = options[:include_ads] || false
+    @listened_filter = options[:listened_filter] || "all"
     @embedding_service = EmbeddingService.new
   end
 
@@ -27,6 +28,15 @@ class TranscriptSearchService
     # Filter by podcast if specified
     elsif @podcast_id
       chunks = chunks.joins(:episode).where(episodes: { podcast_id: @podcast_id })
+    end
+
+    # Apply listened filter
+    case @listened_filter
+    when "unlistened"
+      chunks = chunks.joins(:episode).merge(Episode.unlistened)
+    when "listened"
+      chunks = chunks.joins(:episode).merge(Episode.listened)
+    # "all" - no filter
     end
 
     # Perform vector similarity search
