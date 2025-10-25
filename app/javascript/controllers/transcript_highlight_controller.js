@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 // Highlights and scrolls to a specific transcript chunk when navigating from search results
 export default class extends Controller {
-  static targets = ["skipAdsToggle"]
+  static targets = ["skipAdsToggle", "autoScrollToggle"]
 
   connect() {
     // Initialize skip ads setting from localStorage
@@ -12,6 +12,10 @@ export default class extends Controller {
     if (this.hasSkipAdsToggleTarget) {
       this.skipAdsToggleTarget.checked = this.skipAds
     }
+
+    // Initialize auto-scroll setting from localStorage (default: false)
+    this.autoScroll = localStorage.getItem('autoScroll') === 'true'
+    this.updateAutoScrollButton()
 
     // Check if there's a chunk parameter in the URL
     const params = new URLSearchParams(window.location.search)
@@ -23,12 +27,20 @@ export default class extends Controller {
 
     // Set up live highlighting as audio plays
     this.setupAudioTracking()
+
+    // Set up manual scroll detection
+    this.setupScrollDetection()
   }
 
   disconnect() {
     // Clean up audio event listener
     if (this.audioPlayer) {
       this.audioPlayer.removeEventListener('timeupdate', this.handleTimeUpdate)
+    }
+
+    // Clean up scroll listener
+    if (this.transcriptContainer) {
+      this.transcriptContainer.removeEventListener('scroll', this.handleManualScroll)
     }
   }
 
@@ -43,6 +55,55 @@ export default class extends Controller {
 
     // Add double-click listeners to chunks
     this.setupChunkClickHandlers()
+  }
+
+  setupScrollDetection() {
+    const container = this.transcriptContainer
+
+    if (container) {
+      // Bind the handler so we can remove it later
+      this.handleManualScroll = this.handleManualScroll.bind(this)
+
+      // Track if scroll was triggered programmatically
+      this.isAutoScrolling = false
+
+      container.addEventListener('scroll', this.handleManualScroll)
+    }
+  }
+
+  handleManualScroll() {
+    // Check if this was a programmatic scroll (from this or other controllers)
+    const isProgrammatic = this.isAutoScrolling ||
+                          this.transcriptContainer?.dataset.programmaticScroll === 'true'
+
+    // Only disable auto-scroll if this was a manual scroll (not programmatic)
+    if (!isProgrammatic && this.autoScroll) {
+      this.autoScroll = false
+      localStorage.setItem('autoScroll', 'false')
+      this.updateAutoScrollButton()
+      console.log('Auto-scroll disabled by manual scroll')
+    }
+  }
+
+  toggleAutoScroll() {
+    this.autoScroll = !this.autoScroll
+    localStorage.setItem('autoScroll', this.autoScroll)
+    this.updateAutoScrollButton()
+    console.log('Auto-scroll:', this.autoScroll ? 'enabled' : 'disabled')
+  }
+
+  updateAutoScrollButton() {
+    if (!this.hasAutoScrollToggleTarget) return
+
+    const button = this.autoScrollToggleTarget
+
+    if (this.autoScroll) {
+      button.classList.remove('btn-outline-primary')
+      button.classList.add('btn-primary')
+    } else {
+      button.classList.remove('btn-primary')
+      button.classList.add('btn-outline-primary')
+    }
   }
 
   get transcriptContainer() {
@@ -98,8 +159,8 @@ export default class extends Controller {
     if (activeChunk) {
       activeChunk.classList.add('chunk-highlighted-playback')
 
-      // Scroll within the transcript container only, not the page
-      if (!this.isElementInView(activeChunk)) {
+      // Only auto-scroll if enabled
+      if (this.autoScroll && !this.isElementInView(activeChunk)) {
         this.scrollToChunkInContainer(activeChunk)
       }
     }
@@ -142,6 +203,9 @@ export default class extends Controller {
     // Add padding so chunks aren't right at the edge
     const padding = 40 // pixels of breathing room
 
+    // Mark as programmatic scroll to prevent disabling auto-scroll
+    this.isAutoScrolling = true
+
     // Scroll only if chunk is outside the visible area
     if (chunkTop < containerScrollTop + padding) {
       // Chunk is above visible area - scroll up with padding
@@ -150,6 +214,11 @@ export default class extends Controller {
       // Chunk is below visible area - scroll down with padding
       container.scrollTop = chunkBottom - containerHeight + padding
     }
+
+    // Reset flag after a brief delay (scroll event fires asynchronously)
+    setTimeout(() => {
+      this.isAutoScrolling = false
+    }, 50)
   }
 
   isElementInView(element) {
@@ -171,11 +240,15 @@ export default class extends Controller {
       // Add navigation highlight class (with dramatic animation)
       chunkElement.classList.add('chunk-highlighted-nav')
 
-      // Scroll to chunk within the transcript container
+      // Scroll to chunk within the transcript container (programmatic scroll)
       const container = this.transcriptContainer
       if (container) {
+        this.isAutoScrolling = true
         const scrollTop = chunkElement.offsetTop - (container.clientHeight / 2) + (chunkElement.clientHeight / 2)
         container.scrollTop = scrollTop
+        setTimeout(() => {
+          this.isAutoScrolling = false
+        }, 50)
       }
 
       // Seek audio player to chunk start time

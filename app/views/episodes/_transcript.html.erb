@@ -1,16 +1,24 @@
 <% if episode.transcription_completed? && episode.transcript_chunks.any? %>
   <div class="card mb-4" id="episode_<%= episode.id %>_transcript">
     <div class="card-body"
-         data-controller="chunk-editor"
+         data-controller="chunk-editor transcript-highlight"
          data-chunk-editor-episode-id-value="<%= episode.id %>">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="card-subtitle mb-0 text-muted">Generated Transcript</h6>
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary"
-                data-chunk-editor-target="editToggle"
-                data-action="click->chunk-editor#toggleEditMode">
-          Edit Mode
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  data-transcript-highlight-target="autoScrollToggle"
+                  data-action="click->transcript-highlight#toggleAutoScroll">
+            <i class="bi bi-arrows-collapse-vertical"></i> Auto-scroll
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  data-chunk-editor-target="editToggle"
+                  data-action="click->chunk-editor#toggleEditMode">
+            Edit Mode
+          </button>
+        </div>
       </div>
 
       <!-- Edit mode action bar -->
