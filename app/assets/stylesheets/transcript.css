@@ -39,6 +39,12 @@
   padding: 2px 4px;
   border-radius: 3px;
   cursor: help;
+  display: none; /* Hide ads in view mode */
+}
+
+/* Show ad chunks in edit mode */
+.edit-mode .transcript-chunk-ad {
+  display: inline;
 }
 
 /* Edit mode chunk selection */

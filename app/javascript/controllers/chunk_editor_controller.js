@@ -228,12 +228,16 @@ export default class extends Controller {
     this.endChunkId = parseInt(lastChunk.dataset.chunkId)
     this.updateSelection()
 
-    // Scroll to the cluster (center the first chunk)
+    // Scroll to the cluster (center the first chunk) - mark as programmatic
     const container = document.getElementById('transcript-container')
     if (container) {
+      container.dataset.programmaticScroll = 'true'
       const chunkTop = firstChunk.offsetTop
       const containerHeight = container.clientHeight
       container.scrollTop = chunkTop - (containerHeight / 2) + (firstChunk.offsetHeight / 2)
+      setTimeout(() => {
+        delete container.dataset.programmaticScroll
+      }, 50)
     }
   }
 
@@ -252,8 +256,27 @@ export default class extends Controller {
       })
 
       if (response.ok) {
-        // Reload the page to show updated chunks
-        window.location.reload()
+        // Update chunks in DOM without reloading
+        const isAd = chunkType === "advertisement"
+
+        chunkIds.forEach(chunkId => {
+          const chunkElement = this.chunkTargets.find(
+            c => parseInt(c.dataset.chunkId) === chunkId
+          )
+
+          if (chunkElement) {
+            if (isAd) {
+              chunkElement.classList.add("transcript-chunk-ad")
+              chunkElement.title = "Advertisement (confidence: 100.0%)"
+            } else {
+              chunkElement.classList.remove("transcript-chunk-ad")
+              chunkElement.removeAttribute("title")
+            }
+          }
+        })
+
+        // Clear selection but stay in edit mode
+        this.clearSelection()
       } else {
         alert("Failed to update chunks")
       }

@@ -54,7 +54,7 @@
       <div class="transcript-text"
            id="transcript-container"
            style="max-height: 400px; overflow-y: auto;">
-        <% episode.transcript_chunks.order(:start_time).each do |chunk| %>
+        <% episode.transcript_chunks.transcript_or_ad.order(:start_time).each do |chunk| %>
           <span class="transcript-chunk <%= 'transcript-chunk-ad' if chunk.advertisement? %>"
                 id="chunk-<%= chunk.id %>"
                 data-chunk-id="<%= chunk.id %>"
