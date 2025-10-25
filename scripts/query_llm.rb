@@ -11,7 +11,8 @@ options = {
   listened_filter: 'all',
   podcast_id: nil,
   episode_id: nil,
-  verbose: false
+  verbose: false,
+  debug: false
 }
 
 OptionParser.new do |opts|
@@ -41,11 +42,24 @@ OptionParser.new do |opts|
     options[:verbose] = true
   end
 
+  opts.on("-d", "--debug", "Enable debug logging (shows LLM conversation)") do
+    options[:debug] = true
+  end
+
   opts.on("-h", "--help", "Show this help message") do
     puts opts
     exit
   end
 end.parse!
+
+# Enable debug logging if requested
+if options[:debug]
+  # Redirect Rails logger to stdout for debugging
+  Rails.logger = Logger.new(STDOUT)
+  Rails.logger.level = Logger::DEBUG
+  puts "Debug logging enabled"
+  puts
+end
 
 # Get query from arguments
 query = ARGV.join(" ")
@@ -82,7 +96,7 @@ else
 end
 
 puts "=" * 80
-puts "PODCAST SEARCH - LLM QUERY"
+puts "Query My Pod - LLM QUERY"
 puts "=" * 80
 puts "Query: #{query}"
 puts "Context: #{options[:context]}"
@@ -143,8 +157,8 @@ if options[:verbose]
   puts "=" * 80
   llm_response[:sources].each do |source|
     puts
-    puts "[#{source[:index]}] #{source[:episode_title]}"
-    puts "    Podcast: #{source[:podcast_title]}"
+    puts "[Chunk #{source[:chunk]&.id}] #{source[:episode]&.title}"
+    puts "    Podcast: #{source[:podcast]&.title}"
     puts "    Time: #{source[:timestamp]}"
     puts "    Similarity: #{((1 - source[:distance]) * 100).round(1)}%" if source[:distance]
     puts "    ---"

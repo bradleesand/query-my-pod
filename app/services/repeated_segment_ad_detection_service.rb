@@ -247,14 +247,16 @@ class RepeatedSegmentAdDetectionService
       matches = [ chunk.id ]
 
       # Find similar chunks using nearest neighbors
-      similar_chunks = chunk.nearest_neighbors(:embedding, distance: "cosine")
+      similar_chunks = chunk.transcript_or_ad
+                            .nearest_neighbors(:embedding, distance: :cosine)
                             .where(id: chunks.map(&:id))
                             .where.not(id: chunk.id)
                             .limit(20) # Get top 20 candidates
 
       similar_chunks.each do |similar|
+        similar.neighbor_distance
         # Calculate cosine similarity (1 - distance)
-        similarity = calculate_cosine_similarity(chunk.embedding, similar.embedding)
+        similarity = 1 - similar.neighbor_distance
 
         if similarity >= SIMILARITY_THRESHOLD
           matches << similar.id
@@ -282,9 +284,8 @@ class RepeatedSegmentAdDetectionService
   # @return [Array<Hash>] Matching segments
   def find_cross_episode_repetitions_vector(episode)
     podcast = episode.podcast
-    other_episodes = podcast.episodes.transcription_completed.where.not(id: episode.id)
 
-    return [] if other_episodes.empty?
+    return [] if podcast.episodes.transcription_completed.where.not(id: episode.id).none?
 
     episode_chunks = episode.transcript_chunks.transcript_or_ad
                            .where.not(embedding: nil)
@@ -294,16 +295,17 @@ class RepeatedSegmentAdDetectionService
 
     episode_chunks.find_each do |chunk|
       # Find similar chunks in other episodes using vector search
-      similar_chunks = chunk.nearest_neighbors(:embedding, distance: "cosine")
+      similar_chunks = chunk.transcript_or_ad
+                            .nearest_neighbors(:embedding, distance: :cosine)
                             .joins(:episode)
                             .where(episodes: { podcast_id: podcast.id })
                             .where.not(episode_id: episode.id)
-                            .where(chunk_type: [ "transcript", "advertisement" ])
+                            .where.not(ad_confidence: 0.0) # Exclude known content
                             .limit(10)
 
       similar_episodes = []
       similar_chunks.each do |similar|
-        similarity = calculate_cosine_similarity(chunk.embedding, similar.embedding)
+        similarity = 1 - similar.neighbor_distance
 
         if similarity >= SIMILARITY_THRESHOLD
           similar_episodes << similar.episode_id
@@ -322,23 +324,6 @@ class RepeatedSegmentAdDetectionService
     end
 
     matches
-  end
-
-  # Calculate cosine similarity between two embedding vectors
-  # @param embedding1 [Array<Float>] First embedding
-  # @param embedding2 [Array<Float>] Second embedding
-  # @return [Float] Similarity score (0.0-1.0)
-  def calculate_cosine_similarity(embedding1, embedding2)
-    return 0.0 if embedding1.nil? || embedding2.nil?
-
-    # Cosine similarity = dot product / (magnitude1 * magnitude2)
-    dot_product = embedding1.zip(embedding2).sum { |a, b| a * b }
-    magnitude1 = Math.sqrt(embedding1.sum { |x| x * x })
-    magnitude2 = Math.sqrt(embedding2.sum { |x| x * x })
-
-    return 0.0 if magnitude1.zero? || magnitude2.zero?
-
-    dot_product / (magnitude1 * magnitude2)
   end
 
   # === SLIDING WINDOW CLUSTER ANALYSIS ===

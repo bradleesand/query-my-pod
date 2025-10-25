@@ -64,6 +64,10 @@ class LlmQueryService
         llm_result = call_ollama_chat(messages, force_response: true)
       end
 
+      Rails.logger.debug("LLM conversation messages:")
+      Rails.logger.debug(messages.map { |m| "#{m[:role]}: #{m[:content]}" }.join("\n---\n"))
+      Rails.logger.debug("LLM final response: #{llm_result[:content]}")
+
       # LLM provided a final response
       return {
         response: llm_result[:content],
@@ -90,9 +94,28 @@ class LlmQueryService
         role: "system",
         content: <<~SYSTEM
           You are a helpful assistant that answers questions about podcast episodes using transcript excerpts.
-          You have access to a search_transcript tool to find additional context if needed.
-          Always cite your sources by referencing excerpt numbers in brackets (e.g., [1], [2]).
-          Only use information from the provided excerpts.
+          You have access to tools to gather more information:
+          - search_transcript: Find additional excerpts by keyword search
+          - get_chunk_context: Get surrounding context for a specific chunk (use the chunk_id from excerpts)
+          - get_episode_metadata: Get title and description for episodes (use the Episode ID from excerpts)
+
+          Each excerpt is labeled with [Chunk ID] and [Episode ID: ID].
+
+          IMPORTANT: Before citing a chunk in your final answer, you SHOULD use get_chunk_context to see what was said
+          before and after it. This ensures you understand the full context and don't misrepresent what was said.
+
+          Recommended workflow:
+          1. Review initial excerpts to find relevant chunks
+          2. Use get_chunk_context on promising chunks to see surrounding context (2-3 chunks before/after)
+          3. Use search_transcript if you need additional information on specific topics
+          4. Use get_episode_metadata to understand what episodes are about
+          5. Provide your final answer with citations using [Chunk ID] format
+
+          CRITICAL: This is a non-interactive query system. Do NOT ask follow-up questions or request user input.
+          Use your available tools to gather all needed information, then provide a complete, final answer.
+          If you cannot fully answer the question with available tools, state what you found and what limitations exist.
+
+          Only use information from the provided excerpts and tool results.
         SYSTEM
       },
       {
@@ -107,13 +130,16 @@ class LlmQueryService
     ]
   end
 
-  # Format transcript excerpts with numbering for citation
+  # Format transcript excerpts with chunk IDs for citation and tool use
   # @param results [Array<Hash>] Search results to format
   # @return [String] Formatted context string
   def format_context_excerpts(results)
-    results.map.with_index do |result, i|
+    results.map do |result|
+      chunk_id = result[:chunk]&.id || "unknown"
+      episode_id = result[:episode]&.id || "unknown"
+
       <<~CONTEXT.strip
-        [#{i + 1}] Episode: "#{result[:episode].title}" (#{result[:podcast].title})
+        [Chunk #{chunk_id}] Episode: "#{result[:episode].title}" (#{result[:podcast].title}) [Episode ID: #{episode_id}]
         Time: #{format_timestamp(result[:start_time])} - #{format_timestamp(result[:end_time])}
         Text: #{result[:text]}
       CONTEXT
@@ -145,6 +171,51 @@ class LlmQueryService
             required: [ "query" ]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_chunk_context",
+          description: "Get surrounding transcript chunks before and after a specific chunk. Use this to see more context around an interesting excerpt.",
+          parameters: {
+            type: "object",
+            properties: {
+              chunk_id: {
+                type: "integer",
+                description: "The ID of the chunk to get context for"
+              },
+              before: {
+                type: "integer",
+                description: "Number of chunks to retrieve before this chunk (1-5)",
+                default: 2
+              },
+              after: {
+                type: "integer",
+                description: "Number of chunks to retrieve after this chunk (1-5)",
+                default: 2
+              }
+            },
+            required: [ "chunk_id" ]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_episode_metadata",
+          description: "Get title and description for specific episodes. Use this to learn more about episodes that seem relevant.",
+          parameters: {
+            type: "object",
+            properties: {
+              episode_ids: {
+                type: "array",
+                items: { type: "integer" },
+                description: "List of episode IDs to get metadata for (1-10 episodes)"
+              }
+            },
+            required: [ "episode_ids" ]
+          }
+        }
       }
     ]
   end
@@ -159,6 +230,10 @@ class LlmQueryService
     case function_name
     when "search_transcript"
       execute_search_transcript(arguments)
+    when "get_chunk_context"
+      execute_get_chunk_context(arguments)
+    when "get_episode_metadata"
+      execute_get_episode_metadata(arguments)
     else
       { content: "Error: Unknown tool '#{function_name}'" }
     end
@@ -196,6 +271,107 @@ class LlmQueryService
         Found #{new_results.length} additional excerpt(s) for "#{query}":
 
         #{context}
+      RESULT
+    }
+  end
+
+  # Execute the get_chunk_context tool
+  # @param args [Hash] Arguments with :chunk_id and optional :before/:after
+  # @return [Hash] Tool result with surrounding chunks
+  def execute_get_chunk_context(args)
+    chunk_id = (args["chunk_id"] || args[:chunk_id]).to_i
+    before = (args["before"] || args[:before] || 2).to_i.clamp(1, 5)
+    after = (args["after"] || args[:after] || 2).to_i.clamp(1, 5)
+
+    Rails.logger.info("Executing get_chunk_context: chunk_id=#{chunk_id}, before=#{before}, after=#{after}")
+
+    # Find the requested chunk
+    chunk = TranscriptChunk.find_by(id: chunk_id)
+    unless chunk
+      return { content: "Error: Chunk ID #{chunk_id} not found" }
+    end
+
+    # Get surrounding chunks from the same episode, ordered by chunk_index
+    # Only get transcript chunks (not title/description which have negative indices)
+    surrounding_chunks = TranscriptChunk.where(episode_id: chunk.episode_id, chunk_type: "transcript")
+                                       .where("chunk_index >= ? AND chunk_index <= ?",
+                                              chunk.chunk_index - before,
+                                              chunk.chunk_index + after)
+                                       .order(:chunk_index)
+                                       .includes(episode: :podcast)
+
+    if surrounding_chunks.empty?
+      return { content: "No surrounding context found for chunk #{chunk_id}" }
+    end
+
+    # Convert to result format and add to sources
+    results = surrounding_chunks.map do |c|
+      {
+        chunk: c,
+        episode: c.episode,
+        podcast: c.podcast,
+        text: c.text,
+        start_time: c.start_time,
+        end_time: c.end_time,
+        distance: nil  # No distance for context chunks
+      }
+    end
+
+    # Add new chunks to all_sources, avoiding duplicates
+    results.each do |result|
+      unless @all_sources.any? { |s| s[:chunk]&.id == result[:chunk].id }
+        @all_sources << result
+      end
+    end
+
+    # Format for LLM
+    context = format_context_excerpts(results)
+    {
+      content: <<~RESULT
+        Context around chunk #{chunk_id} (#{before} before, #{after} after):
+        Episode: "#{chunk.episode.title}" (#{chunk.podcast.title})
+
+        #{context}
+      RESULT
+    }
+  end
+
+  # Execute the get_episode_metadata tool
+  # @param args [Hash] Arguments with :episode_ids array
+  # @return [Hash] Tool result with episode metadata
+  def execute_get_episode_metadata(args)
+    episode_ids = args["episode_ids"] || args[:episode_ids] || []
+    episode_ids = episode_ids.map(&:to_i).take(10)  # Limit to 10 episodes
+
+    Rails.logger.info("Executing get_episode_metadata: episode_ids=#{episode_ids.inspect}")
+
+    if episode_ids.empty?
+      return { content: "Error: No episode IDs provided" }
+    end
+
+    episodes = Episode.where(id: episode_ids).includes(:podcast)
+
+    if episodes.empty?
+      return { content: "No episodes found for IDs: #{episode_ids.join(', ')}" }
+    end
+
+    # Format episode metadata
+    metadata = episodes.map do |episode|
+      <<~METADATA.strip
+        Episode ID: #{episode.id}
+        Title: "#{episode.title}"
+        Podcast: #{episode.podcast.title}
+        Description: #{episode.description || 'No description available'}
+        Published: #{episode.pub_date&.strftime('%Y-%m-%d') || 'Unknown'}
+        Duration: #{episode.duration ? "#{(episode.duration / 60).round} minutes" : 'Unknown'}
+      METADATA
+    end.join("\n\n")
+
+    {
+      content: <<~RESULT
+        Episode metadata for #{episodes.count} episode(s):
+
+        #{metadata}
       RESULT
     }
   end
@@ -317,14 +493,11 @@ class LlmQueryService
   # Format all sources including those gathered via tool calls
   # @return [Array<Hash>] Array of all source metadata
   def format_all_sources
-    @all_sources.map.with_index do |result, i|
+    @all_sources.map do |result|
       {
-        index: i + 1,
         chunk: result[:chunk],
         episode: result[:episode],
         podcast: result[:podcast],
-        episode_title: result[:episode].title,
-        podcast_title: result[:podcast].title,
         start_time: result[:start_time],
         end_time: result[:end_time],
         timestamp: format_timestamp(result[:start_time]),
