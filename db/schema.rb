@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_23_014505) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_25_213629) do
   create_table "episodes", force: :cascade do |t|
     t.integer "podcast_id", null: false
     t.text "title", null: false
@@ -34,7 +34,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_23_014505) do
     t.datetime "updated_at", null: false
     t.text "generated_transcript"
     t.string "transcription_status"
-    t.text "local_audio_path"
     t.integer "local_audio_size"
     t.string "local_audio_checksum"
     t.string "download_status"

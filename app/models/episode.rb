@@ -25,7 +25,6 @@
 #  updated_at           :datetime         not null
 #  generated_transcript :text
 #  transcription_status :string
-#  local_audio_path     :text
 #  local_audio_size     :integer
 #  local_audio_checksum :string
 #  download_status      :string
@@ -39,6 +38,8 @@
 #
 
 class Episode < ApplicationRecord
+  include AudioFormat
+
   belongs_to :podcast
   has_many :transcript_chunks, dependent: :destroy
 
@@ -75,9 +76,23 @@ class Episode < ApplicationRecord
     transcript_content["text"]
   end
 
+  # Generate local audio path based on podcast_id/episode_id/extension
+  def audio_path
+    extension = file_extension_for_type(enclosure_type)
+    return nil if extension.nil?
+
+    Rails.root.join("storage", "episodes", podcast_id.to_s, "#{id}#{extension}").to_s
+  end
+
+  # Check if local audio file exists
+  def local_audio_exists?
+    path = audio_path
+    path.present? && File.exist?(path)
+  end
+
   def audio_url
     # Use local audio if available, otherwise original URL
-    if local_audio_path.present? && File.exist?(local_audio_path)
+    if local_audio_exists?
       "/episodes/#{id}/audio"
     else
       enclosure_url

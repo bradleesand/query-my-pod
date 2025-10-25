@@ -25,7 +25,6 @@
 #  updated_at           :datetime         not null
 #  generated_transcript :text
 #  transcription_status :string
-#  local_audio_path     :text
 #  local_audio_size     :integer
 #  local_audio_checksum :string
 #  download_status      :string

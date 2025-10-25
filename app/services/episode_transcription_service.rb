@@ -47,8 +47,8 @@ class EpisodeTranscriptionService
 
   def get_audio_file
     # If local download is enabled and we have a local copy, use it
-    if download_enabled? && episode.local_audio_path.present? && File.exist?(episode.local_audio_path)
-      return episode.local_audio_path
+    if download_enabled? && episode.local_audio_exists?
+      return episode.audio_path
     end
     
     # If local download is enabled, download it now

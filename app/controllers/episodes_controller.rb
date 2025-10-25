@@ -71,14 +71,13 @@ class EpisodesController < ApplicationController
   # POST /episodes/1/redownload_audio
   def redownload_audio
     # Delete existing audio file
-    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path)
-      File.delete(@episode.local_audio_path)
+    if @episode.local_audio_exists?
+      File.delete(@episode.audio_path)
     end
 
     # Reset download status and metadata
     @episode.update!(
       download_status: nil,
-      local_audio_path: nil,
       local_audio_size: nil,
       local_audio_checksum: nil
     )
@@ -104,9 +103,9 @@ class EpisodesController < ApplicationController
 
   # GET /episodes/1/audio
   def serve_audio
-    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path) && @episode.enclosure_type.present?
+    if @episode.local_audio_exists? && @episode.enclosure_type.present?
       # Support HTTP range requests for audio seeking
-      file_path = @episode.local_audio_path
+      file_path = @episode.audio_path
       file_size = File.size(file_path)
 
       # Check if this is a range request
@@ -193,9 +192,9 @@ class EpisodesController < ApplicationController
     )
 
     # Delete local audio file if it exists
-    if @episode.local_audio_path.present? && File.exist?(@episode.local_audio_path)
-      File.delete(@episode.local_audio_path)
-      @episode.update!(local_audio_path: nil, local_audio_size: nil, local_audio_checksum: nil)
+    if @episode.local_audio_exists?
+      File.delete(@episode.audio_path)
+      @episode.update!(local_audio_size: nil, local_audio_checksum: nil)
     end
 
     respond_to do |format|
