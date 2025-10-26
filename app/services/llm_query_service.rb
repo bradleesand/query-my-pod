@@ -518,11 +518,14 @@ class LlmQueryService
   # Format all sources including those gathered via tool calls
   # @return [Array<Hash>] Array of all source metadata
   def format_all_sources
-    @all_sources.map do |result|
+    @all_sources.map.with_index do |result, index|
       {
+        index: index + 1,
         chunk: result[:chunk],
         episode: result[:episode],
+        episode_title: result[:episode]&.title,
         podcast: result[:podcast],
+        podcast_title: result[:podcast]&.title,
         start_time: result[:start_time],
         end_time: result[:end_time],
         timestamp: format_timestamp(result[:start_time]),
