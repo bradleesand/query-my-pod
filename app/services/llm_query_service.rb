@@ -141,10 +141,26 @@ class LlmQueryService
     results.map do |result|
       chunk_id = result[:chunk]&.id || "unknown"
       episode_id = result[:episode]&.id || "unknown"
+      chunk_type = result[:chunk]&.chunk_type || "transcript"
+
+      # Format chunk type label
+      type_label = case chunk_type
+      when "title" then "[EPISODE TITLE]"
+      when "description" then "[EPISODE DESCRIPTION]"
+      when "advertisement" then "[ADVERTISEMENT]"
+      else "[TRANSCRIPT]"
+      end
+
+      # Title and description chunks don't have timestamps
+      time_info = if chunk_type.in?(["title", "description"])
+        "Metadata chunk (no timestamp)"
+      else
+        "Time: #{format_timestamp(result[:start_time])} - #{format_timestamp(result[:end_time])}"
+      end
 
       <<~CONTEXT.strip
-        [Chunk #{chunk_id}] Episode: "#{result[:episode].title}" (#{result[:podcast].title}) [Episode ID: #{episode_id}]
-        Time: #{format_timestamp(result[:start_time])} - #{format_timestamp(result[:end_time])}
+        [Chunk #{chunk_id}] #{type_label} Episode: "#{result[:episode].title}" (#{result[:podcast].title}) [Episode ID: #{episode_id}]
+        #{time_info}
         Text: #{result[:text]}
       CONTEXT
     end.join("\n\n")
@@ -518,10 +534,12 @@ class LlmQueryService
   # Format all sources including those gathered via tool calls
   # @return [Array<Hash>] Array of all source metadata
   def format_all_sources
-    @all_sources.map.with_index do |result, index|
+    @all_sources.map do |result|
+      chunk_type = result[:chunk]&.chunk_type || "transcript"
+
       {
-        index: index + 1,
         chunk: result[:chunk],
+        chunk_type: chunk_type,
         episode: result[:episode],
         episode_title: result[:episode]&.title,
         podcast: result[:podcast],

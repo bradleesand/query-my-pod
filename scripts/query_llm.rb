@@ -121,10 +121,22 @@ if options[:verbose]
   puts "SOURCES (#{llm_response[:sources].length} total)"
   puts "=" * 80
   llm_response[:sources].each do |source|
+    # Format chunk type label
+    chunk_type_label = case source[:chunk_type]
+    when "title" then "[EPISODE TITLE]"
+    when "description" then "[EPISODE DESCRIPTION]"
+    when "advertisement" then "[ADVERTISEMENT]"
+    else "[TRANSCRIPT]"
+    end
+
     puts
-    puts "[Chunk #{source[:chunk]&.id}] #{source[:episode]&.title}"
+    puts "[Chunk #{source[:chunk]&.id}] #{chunk_type_label} #{source[:episode]&.title}"
     puts "    Podcast: #{source[:podcast]&.title}"
-    puts "    Time: #{source[:timestamp]}"
+    if source[:chunk_type].in?(["transcript", "advertisement"])
+      puts "    Time: #{source[:timestamp]}"
+    else
+      puts "    Metadata chunk (no timestamp)"
+    end
     puts "    Similarity: #{((1 - source[:distance]) * 100).round(1)}%" if source[:distance]
     puts "    ---"
     puts "    #{source[:text]}"

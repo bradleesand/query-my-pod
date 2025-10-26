@@ -24,12 +24,24 @@
     <% llm_response[:sources].each do |source| %>
       <div class="card mb-3">
         <div class="card-body">
-          <h6 class="card-subtitle mb-2 text-muted">[<%= source[:index] %>]</h6>
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="card-subtitle text-muted mb-0">[Chunk <%= source[:chunk]&.id %>]</h6>
+            <% chunk_type_badge = case source[:chunk_type]
+               when "title" then { text: "Episode Title", class: "bg-info" }
+               when "description" then { text: "Episode Description", class: "bg-secondary" }
+               when "advertisement" then { text: "Advertisement", class: "bg-warning" }
+               else { text: "Transcript", class: "bg-primary" }
+               end %>
+            <span class="badge <%= chunk_type_badge[:class] %>"><%= chunk_type_badge[:text] %></span>
+          </div>
           <h5 class="card-title">
             <%= link_to source[:episode_title], episode_path(source[:episode], chunk: source[:chunk].id), data: { turbo_frame: "_top" } %>
           </h5>
           <p class="text-muted mb-2">
-            <%= link_to source[:podcast_title], podcast_path(source[:podcast]), class: "text-decoration-none", data: { turbo_frame: "_top" } %> • <%= source[:timestamp] %>
+            <%= link_to source[:podcast_title], podcast_path(source[:podcast]), class: "text-decoration-none", data: { turbo_frame: "_top" } %>
+            <% if source[:chunk_type].in?(["transcript", "advertisement"]) %>
+              • <%= source[:timestamp] %>
+            <% end %>
           </p>
           <p class="card-text"><%= source[:text] %></p>
           <small class="text-muted">Similarity: <%= number_to_percentage((1 - source[:distance]) * 100, precision: 1) %></small>
