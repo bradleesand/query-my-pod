@@ -188,7 +188,7 @@ class LlmQueryService
       end
 
       # Title and description chunks don't have timestamps
-      time_info = if chunk_type.in?(["title", "description"])
+      time_info = if chunk_type.in?([ "title", "description" ])
         "Metadata chunk (no timestamp)"
       else
         "Time: #{format_timestamp(result[:start_time])} - #{format_timestamp(result[:end_time])}"
@@ -212,7 +212,7 @@ class LlmQueryService
     return result if main_chunk.nil?
 
     # Get surrounding chunks from the same episode
-    episode_chunks = main_chunk.episode.transcript_chunks.transcript_or_ad.order(:chunk_index)
+    episode_chunks = main_chunk.episode.transcript_chunks.transcript
     chunk_index = main_chunk.chunk_index
 
     # Get chunks before and after
@@ -282,6 +282,18 @@ class LlmQueryService
   # @param context [Boolean] Whether this is context (vs main result)
   # @return [String] Formatted chunk
   def format_chunk_line(chunk, episode, podcast, context:)
+    # For context chunks, use simplified format (no episode/podcast metadata)
+    if context
+      time_info = if chunk.chunk_type.in?([ "title", "description" ])
+        "Metadata chunk (no timestamp)"
+      else
+        "#{format_timestamp(chunk.start_time)} - #{format_timestamp(chunk.end_time)}"
+      end
+
+      return "[Context Chunk #{chunk.id}] #{time_info}: #{chunk.text}"
+    end
+
+    # For main results, include full metadata
     type_label = case chunk.chunk_type
     when "title" then "[EPISODE TITLE]"
     when "description" then "[EPISODE DESCRIPTION]"
@@ -289,16 +301,14 @@ class LlmQueryService
     else "[TRANSCRIPT]"
     end
 
-    time_info = if chunk.chunk_type.in?(["title", "description"])
+    time_info = if chunk.chunk_type.in?([ "title", "description" ])
       "Metadata chunk (no timestamp)"
     else
       "Time: #{format_timestamp(chunk.start_time)} - #{format_timestamp(chunk.end_time)}"
     end
 
-    label = context ? "[Context Chunk #{chunk.id}]" : "[Chunk #{chunk.id}]"
-
     <<~CHUNK.strip
-      #{label} #{type_label} Episode: "#{episode.title}" (#{podcast.title}) [Episode ID: #{episode.id}]
+      [Chunk #{chunk.id}] #{type_label} Episode: "#{episode.title}" (#{podcast.title}) [Episode ID: #{episode.id}]
       #{time_info}
       Text: #{chunk.text}
     CHUNK
