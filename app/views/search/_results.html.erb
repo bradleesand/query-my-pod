@@ -16,7 +16,7 @@
         <h5 class="mb-0">AI Response</h5>
       </div>
       <div class="card-body">
-        <%= simple_format(llm_response[:response], class: "mb-0") %>
+        <%= format_llm_response_with_citations(llm_response[:response], llm_response[:sources]) %>
       </div>
     </div>
 
