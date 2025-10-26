@@ -1,23 +1,8 @@
 class SearchController < ApplicationController
   def query
     @query = params[:q]
-    @context = params[:context] || "all"
-    @current_podcast_id = params[:current_podcast_id].presence
-    @current_episode_id = params[:current_episode_id].presence
-    @limit = params[:limit]&.to_i || AppConfig.search_context_chunks
-
-    # Determine actual search scope based on context
-    case @context
-    when "episode"
-      @podcast_id = nil
-      @episode_id = @current_episode_id
-    when "podcast"
-      @podcast_id = @current_podcast_id
-      @episode_id = nil
-    when "all"
-      @podcast_id = nil
-      @episode_id = nil
-    end
+    @podcast_id = params[:podcast_id].presence
+    @episode_id = params[:episode_id].presence
 
     if @query.blank?
       if turbo_frame_request?
@@ -28,30 +13,26 @@ class SearchController < ApplicationController
       return
     end
 
-    # Perform vector search
-    listened_filter = params[:listened_filter] || "all"
-    search_service = TranscriptSearchService.new(@query,
-      podcast_id: @podcast_id,
-      episode_id: @episode_id,
-      limit: @limit,
-      listened_filter: listened_filter)
-    @search_results = search_service.search
-
-    if @search_results.empty?
-      @error = "No results found for your query"
-      if turbo_frame_request?
-        render partial: "search/results", locals: { error: @error, llm_response: nil, query: @query, podcast_id: @podcast_id, episode_id: @episode_id }
+    # Build page context for LLM
+    page_context = {}
+    if @episode_id
+      episode = Episode.find_by(id: @episode_id)
+      if episode
+        page_context[:episode_id] = episode.id
+        page_context[:episode_title] = episode.title
+        page_context[:podcast_id] = episode.podcast_id
+        page_context[:podcast_title] = episode.podcast.title
       end
-      return
+    elsif @podcast_id
+      podcast = Podcast.find_by(id: @podcast_id)
+      if podcast
+        page_context[:podcast_id] = podcast.id
+        page_context[:podcast_title] = podcast.title
+      end
     end
 
-    # Generate LLM response with context options for tool calling
-    context_options = {
-      podcast_id: @podcast_id,
-      episode_id: @episode_id,
-      listened_filter: listened_filter
-    }
-    llm_service = LlmQueryService.new(@query, @search_results, context_options)
+    # LLM will gather all information via tools
+    llm_service = LlmQueryService.new(@query, page_context)
     @llm_response = llm_service.generate_response
 
     if @llm_response[:error]

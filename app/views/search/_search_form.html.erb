@@ -6,14 +6,6 @@
   podcast_id ||= nil
   episode_id ||= nil
   placeholder ||= "Ask a question about the transcripts..."
-
-  # Build valid context options based on current page
-  context_options = []
-  context_options << ["This Episode", "episode"] if episode_id
-  context_options << ["This Podcast", "podcast"] if podcast_id || episode_id
-  context_options << ["All Podcasts", "all"] if podcast_id || episode_id
-
-  default_context = episode_id ? "episode" : (podcast_id ? "podcast" : "all")
 %>
 
 <div class="card mb-4" data-controller="search-loader">
@@ -24,39 +16,20 @@
           turbo_frame: "search_results",
           action: "turbo:submit-start->search-loader#showSpinner turbo:submit-end->search-loader#hideSpinner"
         } do |f| %>
-      <%= f.hidden_field :current_podcast_id, value: podcast_id if podcast_id %>
-      <%= f.hidden_field :current_episode_id, value: episode_id if episode_id %>
+      <%= f.hidden_field :podcast_id, value: podcast_id if podcast_id %>
+      <%= f.hidden_field :episode_id, value: episode_id if episode_id %>
 
       <div class="input-group mb-2">
         <%= f.text_field :q,
             class: "form-control",
             placeholder: placeholder,
-            required: true %>
-        <% if context_options.any? %>
-          <%= f.select :context,
-              context_options,
-              { selected: default_context },
-              { class: "form-select", style: "max-width: 150px;" } %>
-        <% else %>
-          <%= f.hidden_field :context, value: default_context %>
-        <% end %>
+            required: true,
+            autofocus: true %>
         <%= f.submit "Search", class: "btn btn-primary", data: { turbo_submits_with: "Searching..." } %>
       </div>
 
-      <div class="mb-2">
-        <%= f.label :listened_filter, "Episode filter:", class: "form-label small" %>
-        <%= f.select :listened_filter,
-            [
-              ["All episodes", "all"],
-              ["Only unlistened", "unlistened"],
-              ["Only listened", "listened"]
-            ],
-            { selected: "all" },
-            { class: "form-select form-select-sm" } %>
-      </div>
-
       <div class="form-text">
-        AI-powered semantic search with citations
+        AI-powered search with automatic context understanding
       </div>
     <% end %>
 

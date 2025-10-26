@@ -10,25 +10,21 @@ class LlmQueryService
   OLLAMA_MODEL = AppConfig.ollama_model
   MAX_TOOL_ITERATIONS = 3  # Maximum number of tool calls to prevent infinite loops
 
-  # Initialize with a query and search results from TranscriptSearchService
+  # Initialize with a query and page context
   # @param query_text [String] The user's question
-  # @param search_results [Array<Hash>] Results from TranscriptSearchService with :episode, :podcast, :text, :start_time, :end_time, :distance
-  # @param context_options [Hash] Options for context filtering (podcast_id, episode_id, listened_filter)
-  def initialize(query_text, search_results, context_options = {})
+  # @param page_context [Hash] Current page context (episode_id, episode_title, podcast_id, podcast_title)
+  def initialize(query_text, page_context = {})
     @query_text = query_text
-    @search_results = search_results
-    @context_options = context_options
-    @all_sources = search_results.dup  # Track all sources used
+    @page_context = page_context
+    @all_sources = []  # Track all sources used
     @tool_iterations = 0
   end
 
-  # Generate a response using the LLM with the provided search results as context
-  # Supports iterative tool calling for the LLM to request additional context
+  # Generate a response using the LLM
+  # LLM will use tools to gather all needed information
   # @return [Hash] Contains :response (String), :sources (Array), :query (String), :tool_calls_made (Integer), or :error (String)
   def generate_response
-    return { error: "No search results provided" } if @search_results.empty?
-
-    # Build initial messages with system prompt and user query with context
+    # Build initial messages with system prompt and user query
     messages = build_messages
 
     # Iteratively call LLM, allowing it to use tools to gather more context
@@ -84,48 +80,56 @@ class LlmQueryService
 
   private
 
-  # Build messages array for chat API with system prompt and initial context
+  # Build messages array for chat API with system prompt
   # @return [Array<Hash>] Array of message hashes with role and content
   def build_messages
-    context = format_context_excerpts(@search_results)
+    # Build page context string if available
+    page_context_str = ""
+    if @page_context[:episode_id]
+      page_context_str = "User is currently viewing episode: \"#{@page_context[:episode_title]}\" (Episode ID: #{@page_context[:episode_id]}) from podcast \"#{@page_context[:podcast_title]}\" (Podcast ID: #{@page_context[:podcast_id]})"
+    elsif @page_context[:podcast_id]
+      page_context_str = "User is currently viewing podcast: \"#{@page_context[:podcast_title]}\" (Podcast ID: #{@page_context[:podcast_id]})"
+    else
+      page_context_str = "User is browsing all podcasts"
+    end
 
     [
       {
         role: "system",
         content: <<~SYSTEM
           You are a helpful assistant that answers questions about podcast episodes using transcript excerpts.
-          You have access to tools to gather more information:
-          - search_transcript: Find additional excerpts by keyword search
+          You have access to tools to gather information:
+          - search_transcript: Find excerpts by keyword search (can filter by podcast_id/episode_id/listened status)
           - get_chunk_context: Get surrounding context for a specific chunk (use the chunk_id from excerpts)
           - get_episode_metadata: Get title and description for episodes (use the Episode ID from excerpts)
 
-          Each excerpt is labeled with [Chunk ID] and [Episode ID: ID].
+          CURRENT CONTEXT: #{page_context_str}
 
-          IMPORTANT: Before citing a chunk in your final answer, you SHOULD use get_chunk_context to see what was said
-          before and after it. This ensures you understand the full context and don't misrepresent what was said.
+          Use the current context to interpret the user's question. For example:
+          - If viewing an episode and they ask "What did they discuss?", search that episode (use episode_id parameter)
+          - If viewing a podcast and they ask a general question, search that podcast (use podcast_id parameter)
+          - If the question is clearly broader than the current context, search across all content (no filters)
 
-          Recommended workflow:
-          1. Review initial excerpts to find relevant chunks
-          2. Use get_chunk_context on promising chunks to see surrounding context (2-3 chunks before/after)
-          3. Use search_transcript if you need additional information on specific topics
-          4. Use get_episode_metadata to understand what episodes are about
-          5. Provide your final answer with citations using [Chunk ID] format
+          WORKFLOW:
+          1. Use search_transcript with appropriate filters based on the question and current context
+          2. Review the excerpts you found (labeled with [Chunk ID] and [Episode ID: ID])
+          3. Use get_chunk_context on promising chunks to see surrounding context (2-3 chunks before/after)
+          4. Use search_transcript again if you need more specific information
+          5. Use get_episode_metadata if you need episode details
+          6. Provide your final answer with citations using [Chunk ID] format
+
+          IMPORTANT: Always start by using search_transcript to find relevant excerpts.
 
           CRITICAL: This is a non-interactive query system. Do NOT ask follow-up questions or request user input.
           Use your available tools to gather all needed information, then provide a complete, final answer.
           If you cannot fully answer the question with available tools, state what you found and what limitations exist.
 
-          Only use information from the provided excerpts and tool results.
+          Only use information from tool results.
         SYSTEM
       },
       {
         role: "user",
-        content: <<~USER
-          Question: #{@query_text}
-
-          Transcript excerpts:
-          #{context}
-        USER
+        content: "Question: #{@query_text}"
       }
     ]
   end
@@ -154,18 +158,31 @@ class LlmQueryService
         type: "function",
         function: {
           name: "search_transcript",
-          description: "Search for additional information in podcast transcripts. Use this when you need more context to answer the question completely.",
+          description: "Search for information in podcast transcripts. Use filters based on the user's context and question.",
           parameters: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "The search query to find more relevant context"
+                description: "The search query to find relevant transcript excerpts"
               },
               num_results: {
                 type: "integer",
-                description: "Number of additional transcript excerpts to retrieve (1-10)",
-                default: 5
+                description: "Number of transcript excerpts to retrieve (1-15)",
+                default: 10
+              },
+              podcast_id: {
+                type: "integer",
+                description: "Filter to a specific podcast by ID (optional)"
+              },
+              episode_id: {
+                type: "integer",
+                description: "Filter to a specific episode by ID (optional)"
+              },
+              listened_filter: {
+                type: "string",
+                description: "Filter by listened status: 'all', 'listened', or 'unlistened' (default: 'all')",
+                enum: [ "all", "listened", "unlistened" ]
               }
             },
             required: [ "query" ]
@@ -240,20 +257,28 @@ class LlmQueryService
   end
 
   # Execute the search_transcript tool
-  # @param args [Hash] Arguments with :query and optional :num_results
+  # @param args [Hash] Arguments with :query and optional filter parameters
   # @return [Hash] Tool result with formatted search results
   def execute_search_transcript(args)
     query = args["query"] || args[:query]
-    num_results = (args["num_results"] || args[:num_results] || 5).to_i.clamp(1, 10)
+    num_results = (args["num_results"] || args[:num_results] || 10).to_i.clamp(1, 15)
+    podcast_id = args["podcast_id"] || args[:podcast_id]
+    episode_id = args["episode_id"] || args[:episode_id]
+    listened_filter = args["listened_filter"] || args[:listened_filter] || "all"
 
-    Rails.logger.info("Executing search_transcript: query='#{query}', num_results=#{num_results}")
+    Rails.logger.info("Executing search_transcript: query='#{query}', num_results=#{num_results}, podcast_id=#{podcast_id}, episode_id=#{episode_id}, listened_filter=#{listened_filter}")
 
-    # Perform new search with same context options
-    search_service = TranscriptSearchService.new(query, @context_options.merge(limit: num_results))
+    # Perform search with filter parameters
+    search_options = { limit: num_results }
+    search_options[:podcast_id] = podcast_id if podcast_id
+    search_options[:episode_id] = episode_id if episode_id
+    search_options[:listened_filter] = listened_filter if listened_filter
+
+    search_service = TranscriptSearchService.new(query, search_options)
     new_results = search_service.search
 
     if new_results.empty?
-      return { content: "No additional relevant excerpts found for: #{query}" }
+      return { content: "No relevant excerpts found for: #{query}" }
     end
 
     # Add new results to all_sources, avoiding duplicates
@@ -268,7 +293,7 @@ class LlmQueryService
     context = format_context_excerpts(new_results)
     {
       content: <<~RESULT
-        Found #{new_results.length} additional excerpt(s) for "#{query}":
+        Found #{new_results.length} excerpt(s) for "#{query}":
 
         #{context}
       RESULT
