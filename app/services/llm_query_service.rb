@@ -105,22 +105,33 @@ class LlmQueryService
         content: <<~SYSTEM
           You are a helpful assistant that answers questions about podcast episodes using transcript excerpts.
           You have access to tools to gather information:
-          - search_transcript: Find excerpts by keyword search (supports filters, context expansion, and similarity thresholds)
+          - search_transcript: Find excerpts by keyword search (supports episode discovery, filters, context expansion, and similarity thresholds)
           - get_chunk_context: Get surrounding context for a specific chunk (use the chunk_id from excerpts)
           - get_episode_metadata: Get title and description for episodes (use the Episode ID from excerpts)
 
           CURRENT CONTEXT: #{page_context_str}
 
           Use the current context to interpret the user's question. For example:
-          - If viewing an episode and they ask "What did they discuss?", search that episode (use episode_id parameter)
-          - If viewing a podcast and they ask a general question, search that podcast (use podcast_id parameter)
+          - If viewing an episode and they ask "What did they discuss?", search that episode (use episode_ids parameter)
+          - If viewing a podcast and they ask a general question, search that podcast (use podcast_ids parameter)
           - If the question is clearly broader than the current context, search across all content (no filters)
 
           SEARCH PARAMETERS:
-          - podcast_id/episode_id: Filter to specific podcast or episode
+          - query: The search query for transcript content
+          - podcast_ids: Filter to specific podcast(s) - can be single ID or array of IDs
+          - episode_ids: Filter to specific episode(s) - can be single ID or array of IDs
+          - episode_discovery_query: First find episodes by title/description, then search transcripts within those episodes
+          - max_episodes: When using episode_discovery_query, limit to top N episodes (1-10, default: 5)
+          - min_episode_similarity: When using episode_discovery_query, minimum similarity for episode matching (0.0-1.0, default: 0.0 - no filter)
           - listened_filter: ONLY use "listened"/"unlistened" if the user EXPLICITLY mentions it. Otherwise use "all" (default).
           - context_before/context_after: Include surrounding chunks (0-5 each). Use this to get more context around search results without a separate tool call.
-          - min_similarity: Filter by relevance (0.0-1.0). Higher = more relevant. Use 0.7+ for highly specific searches.
+          - min_similarity: Filter transcript results by relevance (0.0-1.0). Higher = more relevant. Use 0.7+ for highly specific searches.
+
+          EPISODE DISCOVERY:
+          - Use episode_discovery_query when you want to first find episodes about a topic, then search within those episodes
+          - This is a single tool call that handles both: finding episodes AND searching their transcripts
+          - Example: search_transcript(query="productivity tips", episode_discovery_query="productivity", max_episodes=5)
+          - Useful for broad topic queries where you want to discover relevant episodes first
 
           CONTEXT EXPANSION USAGE:
           - For initial broad searches, use context_before=2, context_after=2 to get surrounding context automatically
@@ -129,11 +140,10 @@ class LlmQueryService
           - ONLY cite main result chunks [Chunk ID] in your answer, not context chunks
 
           WORKFLOW:
-          1. Use search_transcript with appropriate filters and context_before/context_after parameters
+          1. Use search_transcript with appropriate parameters (use episode_discovery_query for broad topic searches)
           2. Review the excerpts you found (main results labeled with [Chunk ID])
           3. Use search_transcript again if you need more specific information
-          4. Use get_episode_metadata if you need episode details
-          5. Provide your final answer with inline citations and a Sources section at the end
+          4. Provide your final answer with inline citations and a Sources section at the end
 
           RESPONSE FORMAT:
           - Write your answer naturally, citing sources inline using ONLY the [Chunk ID] format (e.g., "According to the discussion [Chunk 123], productivity...")
@@ -322,7 +332,7 @@ class LlmQueryService
         type: "function",
         function: {
           name: "search_transcript",
-          description: "Search for information in podcast transcripts. Use filters based on the user's context and question. Can optionally include surrounding context for each result.",
+          description: "Search for information in podcast transcripts. Can optionally discover episodes by title/description first, then search within those episodes. Use filters based on the user's context and question. Can optionally include surrounding context for each result.",
           parameters: {
             type: "object",
             properties: {
@@ -335,13 +345,29 @@ class LlmQueryService
                 description: "Number of transcript excerpts to retrieve (1-15)",
                 default: 10
               },
-              podcast_id: {
-                type: "integer",
-                description: "Filter to a specific podcast by ID (optional)"
+              podcast_ids: {
+                type: "array",
+                items: { type: "integer" },
+                description: "Filter to specific podcast(s) by ID (optional, can be single ID or array of IDs)"
               },
-              episode_id: {
+              episode_ids: {
+                type: "array",
+                items: { type: "integer" },
+                description: "Filter to specific episode(s) by ID (optional, can be single ID or array of IDs)"
+              },
+              episode_discovery_query: {
+                type: "string",
+                description: "Optional: First find episodes by searching titles/descriptions with this query, then search transcripts within only those episodes. Use this when you want to discover relevant episodes first."
+              },
+              max_episodes: {
                 type: "integer",
-                description: "Filter to a specific episode by ID (optional)"
+                description: "When using episode_discovery_query, limit to top N most relevant episodes (1-10, default: 5)",
+                default: 5
+              },
+              min_episode_similarity: {
+                type: "number",
+                description: "When using episode_discovery_query, minimum similarity score for episode matching (0.0-1.0, default: 0.0 - no filter)",
+                default: 0.0
               },
               listened_filter: {
                 type: "string",
@@ -360,7 +386,7 @@ class LlmQueryService
               },
               min_similarity: {
                 type: "number",
-                description: "Minimum similarity score (0.0-1.0) to include results. Higher = more relevant. Default: 0.0 (no filter)",
+                description: "Minimum similarity score (0.0-1.0) to include transcript results. Higher = more relevant. Default: 0.0 (no filter)",
                 default: 0.0
               }
             },
@@ -441,19 +467,59 @@ class LlmQueryService
   def execute_search_transcript(args)
     query = args["query"] || args[:query]
     num_results = (args["num_results"] || args[:num_results] || 10).to_i.clamp(1, 15)
-    podcast_id = args["podcast_id"] || args[:podcast_id]
-    episode_id = args["episode_id"] || args[:episode_id]
+
+    # Normalize podcast_ids and episode_ids to arrays
+    podcast_ids = args["podcast_ids"] || args[:podcast_ids]
+    podcast_ids = Array(podcast_ids).compact if podcast_ids.present?
+
+    episode_ids = args["episode_ids"] || args[:episode_ids]
+    episode_ids = Array(episode_ids).compact if episode_ids.present?
+
+    episode_discovery_query = args["episode_discovery_query"] || args[:episode_discovery_query]
+    max_episodes = (args["max_episodes"] || args[:max_episodes] || 5).to_i.clamp(1, 10)
+    min_episode_similarity = (args["min_episode_similarity"] || args[:min_episode_similarity] || 0.0).to_f.clamp(0.0, 1.0)
     listened_filter = args["listened_filter"] || args[:listened_filter] || "all"
     context_before = (args["context_before"] || args[:context_before] || 0).to_i.clamp(0, 5)
     context_after = (args["context_after"] || args[:context_after] || 0).to_i.clamp(0, 5)
     min_similarity = (args["min_similarity"] || args[:min_similarity] || 0.0).to_f.clamp(0.0, 1.0)
 
-    Rails.logger.info("Executing search_transcript: query='#{query}', num_results=#{num_results}, podcast_id=#{podcast_id}, episode_id=#{episode_id}, listened_filter=#{listened_filter}, context_before=#{context_before}, context_after=#{context_after}, min_similarity=#{min_similarity}")
+    Rails.logger.info("Executing search_transcript: query='#{query}', num_results=#{num_results}, podcast_ids=#{podcast_ids.inspect}, episode_ids=#{episode_ids.inspect}, episode_discovery_query='#{episode_discovery_query}', max_episodes=#{max_episodes}, min_episode_similarity=#{min_episode_similarity}, listened_filter=#{listened_filter}, context_before=#{context_before}, context_after=#{context_after}, min_similarity=#{min_similarity}")
+
+    # Episode discovery: First find relevant episodes by title/description
+    # Discovery respects podcast_ids and episode_ids filters
+    discovered_episode_ids = nil
+    if episode_discovery_query.present?
+      discovered_episode_ids = discover_episodes_by_metadata(
+        episode_discovery_query,
+        podcast_ids: podcast_ids,
+        episode_ids: episode_ids,
+        listened_filter: listened_filter,
+        max_episodes: max_episodes,
+        min_similarity: min_episode_similarity
+      )
+
+      if discovered_episode_ids.empty?
+        return { content: "No episodes found matching '#{episode_discovery_query}'. Try a different search query." }
+      end
+
+      Rails.logger.info("Episode discovery found #{discovered_episode_ids.length} episodes: #{discovered_episode_ids.inspect}")
+    end
 
     # Perform search with filter parameters
-    search_options = { limit: num_results }
-    search_options[:podcast_id] = podcast_id if podcast_id
-    search_options[:episode_id] = episode_id if episode_id
+    search_options = {
+      limit: num_results,
+      chunk_types: ["transcript", "title", "description"] # Exclude advertisements
+    }
+
+    # Priority: discovered episodes > explicit episode_ids > podcast_ids
+    if discovered_episode_ids.present?
+      search_options[:episode_ids] = discovered_episode_ids
+    elsif episode_ids.present?
+      search_options[:episode_ids] = episode_ids
+    elsif podcast_ids.present?
+      search_options[:podcast_ids] = podcast_ids
+    end
+
     search_options[:listened_filter] = listened_filter if listened_filter
 
     search_service = TranscriptSearchService.new(query, search_options)
@@ -499,6 +565,52 @@ class LlmQueryService
         #{context}
       RESULT
     }
+  end
+
+  # Discover episodes by searching title/description chunks
+  # @param query [String] Search query
+  # @param podcast_ids [Array<Integer>] Optional podcast filters
+  # @param episode_ids [Array<Integer>] Optional episode filters (limits discovery to these episodes)
+  # @param listened_filter [String] Filter by listened status
+  # @param max_episodes [Integer] Maximum number of episodes to return
+  # @param min_similarity [Float] Minimum similarity threshold (0.0-1.0, default: 0.0 - no filter)
+  # @return [Array<Integer>] Array of episode IDs
+  def discover_episodes_by_metadata(query, podcast_ids: nil, episode_ids: nil, listened_filter: "all", max_episodes: 5, min_similarity: 0.0)
+    # Search title and description chunks only
+    search_options = {
+      limit: max_episodes * 3, # Get more results since we'll dedupe by episode
+      chunk_types: ["title", "description"] # Only search metadata chunks
+    }
+    search_options[:podcast_ids] = podcast_ids if podcast_ids&.any?
+    search_options[:episode_ids] = episode_ids if episode_ids&.any?
+    search_options[:listened_filter] = listened_filter if listened_filter
+
+    search_service = TranscriptSearchService.new(query, search_options)
+    metadata_results = search_service.search
+
+    # Group by episode and get best match for each
+    episodes_by_id = {}
+    metadata_results.each do |result|
+      episode = result[:episode]
+      next unless episode
+
+      similarity = 1.0 - result[:distance]
+      next if similarity < min_similarity
+
+      # Use best (lowest) distance for each episode
+      if !episodes_by_id[episode.id] || result[:distance] < episodes_by_id[episode.id][:distance]
+        episodes_by_id[episode.id] = {
+          episode_id: episode.id,
+          distance: result[:distance]
+        }
+      end
+    end
+
+    # Sort by relevance and return episode IDs
+    episodes_by_id.values
+                  .sort_by { |e| e[:distance] }
+                  .take(max_episodes)
+                  .map { |e| e[:episode_id] }
   end
 
   # Execute the get_chunk_context tool

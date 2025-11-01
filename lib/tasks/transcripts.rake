@@ -1,4 +1,70 @@
 namespace :transcripts do
+  desc "Create title and description chunks for all episodes"
+  task create_metadata_chunks: :environment do
+    episodes = Episode.all
+    total = episodes.count
+
+    puts "Found #{total} episodes"
+    puts "Creating title and description chunks for episodes that don't have them..."
+
+    created = 0
+    skipped = 0
+
+    episodes.find_each.with_index do |episode, index|
+      print "\rProcessing episode #{index + 1}/#{total} (ID: #{episode.id})..."
+
+      # Check if title and description chunks already exist
+      has_title = episode.transcript_chunks.title.exists?
+      has_description = episode.transcript_chunks.description.exists?
+
+      chunks_added = 0
+
+      # Create title chunk if missing
+      if !has_title && episode.title.present?
+        TranscriptChunk.create!(
+          episode: episode,
+          text: episode.title,
+          start_time: nil,
+          end_time: nil,
+          chunk_index: -2,
+          chunk_type: "title"
+        )
+        chunks_added += 1
+      end
+
+      # Create description chunk if missing
+      if !has_description && episode.description.present?
+        TranscriptChunk.create!(
+          episode: episode,
+          text: episode.description,
+          start_time: nil,
+          end_time: nil,
+          chunk_index: -1,
+          chunk_type: "description"
+        )
+        chunks_added += 1
+      end
+
+      if chunks_added > 0
+        created += chunks_added
+        puts " ✓ Created #{chunks_added} chunk(s)"
+      else
+        skipped += 1
+      end
+    end
+
+    puts "\n\nDone!"
+    puts "✓ Created #{created} metadata chunks"
+    puts "⊘ Skipped #{skipped} episodes (already had metadata chunks or missing title/description)"
+
+    # Show summary
+    title_chunks = TranscriptChunk.title.count
+    description_chunks = TranscriptChunk.description.count
+    puts "\nTotal metadata chunks in database:"
+    puts "  Title chunks: #{title_chunks}"
+    puts "  Description chunks: #{description_chunks}"
+  end
+
   desc "Chunk all completed transcripts into searchable segments"
   task chunk: :environment do
     episodes = Episode.where(transcription_status: :completed)
