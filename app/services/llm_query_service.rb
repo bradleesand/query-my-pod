@@ -67,9 +67,10 @@ class LlmQueryService
       Rails.logger.debug("LLM final response: #{llm_result[:content]}")
 
       # LLM provided a final response
-      # Extract cited chunk IDs and filter sources
+      # Extract cited chunk and episode IDs, then filter sources
       cited_chunk_ids = extract_cited_chunk_ids(llm_result[:content])
-      filtered_sources = filter_sources_by_citations(cited_chunk_ids)
+      cited_episode_ids = extract_cited_episode_ids(llm_result[:content])
+      filtered_sources = filter_sources_by_citations(cited_chunk_ids, cited_episode_ids)
 
       return {
         response: llm_result[:content],
@@ -146,23 +147,26 @@ class LlmQueryService
           4. Provide your final answer with inline citations and a Sources section at the end
 
           RESPONSE FORMAT:
-          - Write your answer naturally, citing sources inline using ONLY the [Chunk ID] format (e.g., "According to the discussion [Chunk 123], productivity...")
-          - DO NOT include episode titles, timestamps, or other details inline - just the chunk ID reference
-          - At the END of your response, add a "Sources:" section listing all chunks you cited
-          - In the Sources section, format each source as:
-            [Chunk ID] EPISODE TITLE (PODCAST TITLE)
-            TEXT
+          - Write your answer naturally, citing sources inline
+          - For specific transcript excerpts, use [Chunk ID] format (e.g., "According to the discussion [Chunk 123], productivity...")
+          - For entire episodes (when answering "which episode" questions), use [Episode ID] format (e.g., "Episode about productivity [Episode 456]")
+          - DO NOT include episode titles, timestamps, or other details inline - just the ID reference
+          - At the END of your response, add a "Sources:" section listing all citations
+          - Format chunk sources as: [Chunk ID] EPISODE TITLE (PODCAST TITLE)\nTEXT
+          - Format episode sources as: [Episode ID] EPISODE TITLE (PODCAST TITLE)
 
           Example response format:
 
-          The main topic discussed was productivity [Chunk 45]. The guest mentioned several techniques [Chunk 47] including time blocking and deep work sessions [Chunk 52].
+          The episode about productivity is [Episode 100]. Within that episode, the guest mentioned several techniques [Chunk 47] including time blocking and deep work sessions [Chunk 52].
 
           Sources:
-          [Chunk 45] Productivity Hacks Episode (The Tim Ferriss Show)
-          The main topic discussed was productivity and time management techniques.
+          [Episode 100] Productivity Hacks (The Tim Ferriss Show)
 
-          [Chunk 47] Deep Work Tips (The Huberman Lab Podcast)
-          He mentioned several techniques including time blocking and deep work sessions.
+          [Chunk 47] Productivity Hacks (The Tim Ferriss Show)
+          The guest mentioned several techniques including time blocking and deep work sessions.
+
+          [Chunk 52] Deep Work Tips (The Huberman Lab Podcast)
+          He mentioned time blocking and deep work sessions.
 
           IMPORTANT: Always start by using search_transcript to find relevant excerpts.
 
@@ -866,18 +870,37 @@ class LlmQueryService
     chunk_ids
   end
 
-  # Filter sources to only include chunks that were cited in the response
+  # Extract episode IDs that were cited in the LLM response
+  # Looks for patterns like [Episode 123] in the response text
+  # @param response_text [String] The LLM's response
+  # @return [Array<Integer>] Array of cited episode IDs
+  def extract_cited_episode_ids(response_text)
+    return [] if response_text.blank?
+
+    # Find all [Episode N] patterns and extract the episode IDs
+    episode_ids = response_text.scan(/\[Episode (\d+)\]/).flatten.map(&:to_i).uniq
+    Rails.logger.info("Extracted #{episode_ids.length} cited episode IDs: #{episode_ids.inspect}")
+    episode_ids
+  end
+
+  # Filter sources to only include chunks/episodes that were cited in the response
   # @param cited_chunk_ids [Array<Integer>] Array of chunk IDs that were cited
+  # @param cited_episode_ids [Array<Integer>] Array of episode IDs that were cited
   # @return [Array<Hash>] Filtered array of source metadata
-  def filter_sources_by_citations(cited_chunk_ids)
-    return [] if cited_chunk_ids.empty?
+  def filter_sources_by_citations(cited_chunk_ids, cited_episode_ids)
+    return [] if cited_chunk_ids.empty? && cited_episode_ids.empty?
 
     formatted_sources = format_all_sources
     filtered = formatted_sources.select do |source|
-      cited_chunk_ids.include?(source[:chunk]&.id)
+      # Include if chunk ID was cited
+      chunk_cited = cited_chunk_ids.include?(source[:chunk]&.id)
+      # Include if episode ID was cited (for episode-level citations)
+      episode_cited = cited_episode_ids.include?(source[:episode]&.id)
+
+      chunk_cited || episode_cited
     end
 
-    Rails.logger.info("Filtered sources from #{formatted_sources.length} to #{filtered.length} based on citations")
+    Rails.logger.info("Filtered sources from #{formatted_sources.length} to #{filtered.length} based on #{cited_chunk_ids.length} chunk citations and #{cited_episode_ids.length} episode citations")
     filtered
   end
 
