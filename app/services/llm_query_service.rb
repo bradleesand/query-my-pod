@@ -346,7 +346,7 @@ class LlmQueryService
               },
               num_results: {
                 type: "integer",
-                description: "Number of transcript excerpts to retrieve (1-15)",
+                description: "Number of transcript excerpts to retrieve (1-50)",
                 default: 10
               },
               podcast_ids: {
@@ -365,7 +365,7 @@ class LlmQueryService
               },
               max_episodes: {
                 type: "integer",
-                description: "When using episode_discovery_query, limit to top N most relevant episodes (1-10, default: 5)",
+                description: "When using episode_discovery_query, limit to top N most relevant episodes (1-25, default: 5)",
                 default: 5
               },
               min_episode_similarity: {
@@ -380,12 +380,12 @@ class LlmQueryService
               },
               context_before: {
                 type: "integer",
-                description: "Number of chunks to include before each result for context (0-5, default: 0)",
+                description: "Number of chunks to include before each result for context (0-15, default: 0)",
                 default: 0
               },
               context_after: {
                 type: "integer",
-                description: "Number of chunks to include after each result for context (0-5, default: 0)",
+                description: "Number of chunks to include after each result for context (0-15, default: 0)",
                 default: 0
               },
               min_similarity: {
@@ -412,12 +412,12 @@ class LlmQueryService
               },
               before: {
                 type: "integer",
-                description: "Number of chunks to retrieve before this chunk (1-5)",
+                description: "Number of chunks to retrieve before this chunk (1-15)",
                 default: 2
               },
               after: {
                 type: "integer",
-                description: "Number of chunks to retrieve after this chunk (1-5)",
+                description: "Number of chunks to retrieve after this chunk (1-15)",
                 default: 2
               }
             },
@@ -470,7 +470,7 @@ class LlmQueryService
   # @return [Hash] Tool result with formatted search results
   def execute_search_transcript(args)
     query = args["query"] || args[:query]
-    num_results = (args["num_results"] || args[:num_results] || 10).to_i.clamp(1, 15)
+    num_results = (args["num_results"] || args[:num_results] || 10).to_i.clamp(1, 50)
 
     # Normalize podcast_ids and episode_ids to arrays
     podcast_ids = args["podcast_ids"] || args[:podcast_ids]
@@ -480,11 +480,11 @@ class LlmQueryService
     episode_ids = Array(episode_ids).compact if episode_ids.present?
 
     episode_discovery_query = args["episode_discovery_query"] || args[:episode_discovery_query]
-    max_episodes = (args["max_episodes"] || args[:max_episodes] || 5).to_i.clamp(1, 10)
+    max_episodes = (args["max_episodes"] || args[:max_episodes] || 5).to_i.clamp(1, 25)
     min_episode_similarity = (args["min_episode_similarity"] || args[:min_episode_similarity] || 0.0).to_f.clamp(0.0, 1.0)
     listened_filter = args["listened_filter"] || args[:listened_filter] || "all"
-    context_before = (args["context_before"] || args[:context_before] || 0).to_i.clamp(0, 5)
-    context_after = (args["context_after"] || args[:context_after] || 0).to_i.clamp(0, 5)
+    context_before = (args["context_before"] || args[:context_before] || 0).to_i.clamp(0, 15)
+    context_after = (args["context_after"] || args[:context_after] || 0).to_i.clamp(0, 15)
     min_similarity = (args["min_similarity"] || args[:min_similarity] || 0.0).to_f.clamp(0.0, 1.0)
 
     Rails.logger.info("Executing search_transcript: query='#{query}', num_results=#{num_results}, podcast_ids=#{podcast_ids.inspect}, episode_ids=#{episode_ids.inspect}, episode_discovery_query='#{episode_discovery_query}', max_episodes=#{max_episodes}, min_episode_similarity=#{min_episode_similarity}, listened_filter=#{listened_filter}, context_before=#{context_before}, context_after=#{context_after}, min_similarity=#{min_similarity}")
@@ -622,8 +622,8 @@ class LlmQueryService
   # @return [Hash] Tool result with surrounding chunks
   def execute_get_chunk_context(args)
     chunk_id = (args["chunk_id"] || args[:chunk_id]).to_i
-    before = (args["before"] || args[:before] || 2).to_i.clamp(1, 5)
-    after = (args["after"] || args[:after] || 2).to_i.clamp(1, 5)
+    before = (args["before"] || args[:before] || 2).to_i.clamp(1, 15)
+    after = (args["after"] || args[:after] || 2).to_i.clamp(1, 15)
 
     Rails.logger.info("Executing get_chunk_context: chunk_id=#{chunk_id}, before=#{before}, after=#{after}")
 
